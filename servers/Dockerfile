@@ -1,0 +1,10 @@
+FROM python:3.6.7-alpine3.8
+
+WORKDIR /server/
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+COPY . /server/web
+
+WORKDIR /server/web
+EXPOSE 10080
+ENTRYPOINT ["python3", "tornado_request_topic.py"]

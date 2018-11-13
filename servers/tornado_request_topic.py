@@ -25,9 +25,9 @@ class AnalyticsHandler(WebSocketHandler):
 		# placeholder return
 		return await self.write_message(f'You subscribed to {topic}')
 	
-	def on_message(self):
+	async def on_message(self, message):
 		# not implemented (at least yet)
-		pass
+		return await self.write_message(f'Your message was {message}')
 	
 	def on_close(self):
 		print(f'Client closed connection. Code: {self.close_code} and reason: {self.close_reason}')
