@@ -1,0 +1,17 @@
+{
+    "rabbitmq": {
+        "hosts": ["bigdata-project_rabbitmq1_1", "bigdata-project_rabbitmq2_1", "bigdata-project_rabbitmq3_1"],
+        "port": 5672,
+        "vhost": "/",
+        "user": "bigdata",
+        "password": "bigdata",
+        "retry_delay": 1,
+        "connection_attempts": 3
+    },
+    "twitter-api": {
+        "consumer_api_key" : "2cxr421lek7AuoJZB1zMVkLDr",
+        "consumer_api_secret" : "V2HwjXymsmFcpHeC6Hfb90acpeKG0NXWDLr0uCBqTpPRnSG38p",
+        "access_token" : "2349631081-8KYghawl484QLfeMRXRodwSyo9BVqcO24RGuK4z",
+        "access_token_secret" : "yZcbqQOOvmGWo3sd2F69LjGFFTjc5NrgIlXpVrthvNBqR"
+    }
+}
