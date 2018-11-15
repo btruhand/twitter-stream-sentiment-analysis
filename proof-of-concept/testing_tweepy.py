@@ -1,4 +1,5 @@
 import tweepy
+import time
 
 consumer_api_key = '2cxr421lek7AuoJZB1zMVkLDr'
 consumer_api_secret = 'V2HwjXymsmFcpHeC6Hfb90acpeKG0NXWDLr0uCBqTpPRnSG38p'
@@ -14,6 +15,7 @@ auth.set_access_token(access_token, access_token_secret)
 api = tweepy.API(auth)
 streamListener = TestListener()
 stream = tweepy.Stream(auth = api.auth, listener = streamListener)
-stream.filter(track=['Trump'], languages=['en'], async=True)
-streamTwo = tweepy.Stream(auth = api.auth, listener = streamListener)
-streamTwo.filter(track=['global warming'], languages=['en'])
+stream.filter(track=['global warming'], languages=['en'], async=True)
+print('ok')
+time.sleep(5)
+stream.filter(track=['Trump'], languages=['en'])

@@ -1,8 +1,8 @@
-import tornado.ioloop
+import json
+import tornado
 from tornado.web import RequestHandler, URLSpec
 from tornado.websocket import WebSocketHandler
 from urllib.parse import urljoin
-import json
 from os import environ
 
 class PageHandler(RequestHandler):
@@ -11,6 +11,9 @@ class PageHandler(RequestHandler):
 		self.set_status(200)
 
 class TopicHandler(RequestHandler):
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
+
 	def post(self):
 		payload = json.loads(self.request.body)
 		topic_ws_path = self.application.reverse_url('analytics', payload['topic'])
@@ -42,4 +45,7 @@ if __name__ == "__main__":
 		URLSpec(r'/ws/([^ \n]+)', AnalyticsHandler, name='analytics')
 	], template_path='./tornado_templates', static_path='./static', debug=environ.get('DEBUG', False))
 	app.listen(10080)
-	tornado.ioloop.IOLoop.current().start()
+	try:
+		tornado.ioloop.IOLoop.current().start()
+	except KeyboardInterrupt as e:
+		print(f'Detected keyboard interrupt {e}, emptying resources (to do)')
