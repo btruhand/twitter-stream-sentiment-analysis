@@ -1,4 +1,4 @@
-version: "3.7"
+version: "2.4"
 services:
   streaming-web:
     build:
@@ -14,6 +14,8 @@ services:
     networks:
       - web_rabbitmq
     ports:
+      # this is just for ease right now will be removed later
+      - "5672:5672"
       - "15672:15672"
     expose:
       - "4369"
@@ -25,7 +27,8 @@ services:
     volumes:
       - rabbitmq_data_1:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
-      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json
+      - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json # this makes some things easier, some things harder
+      # would not do it in a production setting, but here it is just to ease things up
   rabbitmq2:
     image: rabbitmq:3.7-management
     depends_on:
@@ -41,6 +44,8 @@ services:
       - rabbitmq_data_2:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json
+    restart: on-failure
+    # should specify some sort of "waiting here" before 
   rabbitmq3:
     image: rabbitmq:3.7-management
     depends_on:
@@ -56,6 +61,7 @@ services:
       - rabbitmq_data_3:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json
+    restart: on-failure
 
 networks:
   web_rabbitmq:
