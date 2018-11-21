@@ -1,3 +1,0 @@
-tornado
--e git://github.com/pika/pika.git#egg=pika
-celery

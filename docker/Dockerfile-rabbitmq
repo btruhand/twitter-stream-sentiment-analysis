@@ -1,0 +1,4 @@
+FROM rabbitmq:3.7-management
+
+RUN apt-get update && apt-get install -y wget && rm -rf /var/lib/apt/lists/*
+RUN wget -P /tmp https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh && chmod u+x /tmp/wait-for-it.sh

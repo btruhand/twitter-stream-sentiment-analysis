@@ -1,0 +1,8 @@
+.direnv
+.git
+.DS_Store
+docs
+docker
+*/__pycache__
+scripts
+builds

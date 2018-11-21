@@ -12,8 +12,7 @@ def create_rabbitmq_broker_uri():
 	for host in hosts:
 		yield f'amqp://{user}:{passwd}@{host}:{port}{vhost}'
 
-# broker_url = [uri for uri in create_rabbitmq_broker_uri()]
-broker_url = 'amqp://bigdata:bigdata@localhost/'
+broker_url = [uri for uri in create_rabbitmq_broker_uri()]
 broker_connection_max_retries = rabbitmq_conf['connection_attempts']
 result_backend = 'rpc://'
 result_persistent = False
