@@ -1,0 +1,10 @@
+FROM python:3.6.7-alpine3.8
+
+WORKDIR /app/
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+COPY celeryconfig.py .
+COPY config.json .
+COPY ./streaming streaming
+COPY ./lib/StreamTopics.py lib/StreamTopics.py
+ENTRYPOINT ["celery", "-A", "streaming", "worker", "-l", "info", "-c", "2"]

@@ -2,20 +2,23 @@ version: "2.4"
 services:
   streaming-web:
     build:
-      context: ./servers
-      dockerfile: ./servers/Dockerfile
+      context: .
+      dockerfile: ./docker/Dockerfile-server
     image: bigdata-project-tornado:latest
     ports:
       - "80:10080"
     networks:
       - web_rabbitmq
+
   rabbitmq1:
-    image: rabbitmq:3.7-management
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-rabbitmq
+    image: bigdata-project-mq:latest
     networks:
       - web_rabbitmq
+      - backend_rabbitmq
     ports:
-      # this is just for ease right now will be removed later
-      - "5672:5672"
       - "15672:15672"
     expose:
       - "4369"
@@ -29,12 +32,23 @@ services:
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json # this makes some things easier, some things harder
       # would not do it in a production setting, but here it is just to ease things up
+    healthcheck:
+      test: ["CMD", "./tmp/wait-for-it.sh", "localhost:5672", "-t", "10"]
+      interval: 30s
+      retries: 3
+      start_period: 45s
+    restart: on-failure
+
   rabbitmq2:
-    image: rabbitmq:3.7-management
+    image: bigdata-project-mq:latest
+    # image: rabbitmq:3.7-management
     depends_on:
-      - rabbitmq1
+      rabbitmq1:
+        # condition: service_healthy
+        condition: service_started
     networks:
       - web_rabbitmq
+      - backend_rabbitmq
     expose:
       - "5672"
     hostname: rabbitmq2
@@ -44,14 +58,23 @@ services:
       - rabbitmq_data_2:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json
+    healthcheck:
+      test: ["CMD", "./tmp/wait-for-it.sh", "localhost:5672", "-t", "10"]
+      interval: 30s
+      retries: 1
+      start_period: 45s
     restart: on-failure
-    # should specify some sort of "waiting here" before 
+
   rabbitmq3:
-    image: rabbitmq:3.7-management
+    image: bigdata-project-mq:latest
+    # image: rabbitmq:3.7-management
     depends_on:
-      - rabbitmq1
+      rabbitmq1:
+        # condition: service_healthy
+        condition: service_started
     networks:
       - web_rabbitmq
+      - backend_rabbitmq
     expose:
       - "5672"
     hostname: rabbitmq3
@@ -61,12 +84,40 @@ services:
       - rabbitmq_data_3:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json
+    healthcheck:
+      test: ["CMD", "./tmp/wait-for-it.sh", "localhost:5672", "-t", "10"]
+      interval: 30s
+      retries: 3
+      start_period: 45s
     restart: on-failure
+
+  streamer:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-streaming
+    image: streaming-worker:latest
+    networks:
+      - backend_rabbitmq
+    depends_on:
+      rabbitmq1:
+        condition: service_healthy
+        # condition: service_started
+      rabbitmq2:
+        condition: service_healthy
+        # condition: service_started
+      rabbitmq3:
+        condition: service_healthy
+        # condition: service_started
+    cpus: 2.5
+    scale: 2
 
 networks:
   web_rabbitmq:
     driver: bridge
     name: project-web-rabbitmq
+  backend_rabbitmq:
+    driver: bridge
+    name: project-backend-rabbitmq
 
 volumes:
   rabbitmq_data_1:
