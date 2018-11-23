@@ -3,6 +3,7 @@ FROM python:3.6.7-alpine3.8
 WORKDIR /app/
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
+USER nobody
 COPY celeryconfig.py .
 COPY config.json .
 COPY ./streaming streaming
