@@ -58,6 +58,13 @@ with the latest changes
 
 See: [what are Docker services](https://docs.docker.com/compose/compose-file/compose-file-v2/#service-configuration-reference))
 
+## Frontend view
+Once you start the containers you can check the following in the browser:
+1. `localhost` for the web application
+2. `localhost:15672` for the RabbitMq management board
+
+Please check on `localhost:15672` that there are 2 nodes in the cluster: `rabbit@rabbitmq1` and `rabbit@rabbitmq2`
+
 ## Seeing logs of containers
 To see all the project's containers logs
 ```bash
@@ -77,3 +84,8 @@ Here are some troubleshooting guidelines
 ### Docker requires login
 You may encounter [this issue](https://github.com/docker/hub-feedback/issues/1103). If so the easiest way is for you to create an account
 at [DockerHub](https://hub.docker.com/) and do a `docker login`
+
+### Docker port in use
+Ports `80` and `15672` on the host (a.k.a your computer) is used to bind to some of the container's ports. If Docker says port `80` or `15672` is in use
+please check if any applications are using those ports and stop those applications first. Alternatively you can modify the port bindings in `docker-compose.yml`
+under `streaming-web` and `rabbitmq` services.
