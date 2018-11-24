@@ -1,6 +1,6 @@
 {
     "rabbitmq": {
-        "hosts": ["rabbitmq1", "rabbitmq2", "rabbitmq3"],
+        "hosts": ["rabbitmq1", "rabbitmq2"],
         "port": 5672,
         "vhost": "/",
         "user": "bigdata",
