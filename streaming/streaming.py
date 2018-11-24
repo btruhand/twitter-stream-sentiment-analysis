@@ -6,21 +6,20 @@ conf_fd = open('config.json')
 twitter_conf = json.load(conf_fd)['twitter-api']
 
 def test(status):
-	pass
-	# full_data = status._json
-	# print(f'Received status {full_data}')
+	full_data = status._json
+	print(f'Received status {full_data}')
 
 @app.task(
 	bind=True,
 	base=StreamTopics,
 	name='streaming.start_stream',
-	# routing_key='stream.start',
+	routing_key='stream.start',
 	twitter_configuration=twitter_conf)
 def start_stream(self, topic):
-	print(f'GOT REQUEST {self.request.id}')
-	# twitter_stream = self[self.request.id]
-	# twitter_stream.listener.set_on_status_callback(test)
-	# twitter_stream.filter(track=[topic], async=True)
+	print(f'Got request {self.request.id} for topic {topic}')
+	twitter_stream = self[self.request.id]
+	twitter_stream.listener.set_on_status_callback(test)
+	twitter_stream.filter(track=[topic], async=True)
 	return {'status': 'ok', 'task_id': self.request.id}
 
 @app.task(

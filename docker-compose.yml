@@ -38,6 +38,7 @@ services:
       retries: 3
       start_period: 45s
     restart: on-failure
+    mem_limit: 150M
 
   rabbitmq2:
     image: bigdata-project-mq:latest
@@ -64,6 +65,7 @@ services:
       retries: 1
       start_period: 45s
     restart: on-failure
+    mem_limit: 150M
 
   rabbitmq3:
     image: bigdata-project-mq:latest
@@ -90,6 +92,7 @@ services:
       retries: 3
       start_period: 45s
     restart: on-failure
+    mem_limit: 150M
 
   streamer:
     build:
@@ -114,15 +117,15 @@ services:
 networks:
   web_rabbitmq:
     driver: bridge
-    name: project-web-rabbitmq
+    name: bigdata-project-web-rabbitmq
   backend_rabbitmq:
     driver: bridge
-    name: project-backend-rabbitmq
+    name: bigdata-project-backend-rabbitmq
 
 volumes:
   rabbitmq_data_1:
-    name: project-rabbitmq-data-1
+    name: bigdata-project-rabbitmq-data-1
   rabbitmq_data_2:
-    name: project-rabbitmq-data-2
+    name: bigdata-project-rabbitmq-data-2
   rabbitmq_data_3:
-    name: project-rabbitmq-data-3
+    name: bigdata-project-rabbitmq-data-3
