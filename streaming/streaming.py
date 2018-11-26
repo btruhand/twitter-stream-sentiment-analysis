@@ -1,14 +1,12 @@
 from .celery import app
+from celery.utils.log import get_task_logger
 from lib.StreamTopics import StreamTopics #pylint: disable=import-error
 import json
 
 conf_fd = open('config.json')
 twitter_conf = json.load(conf_fd)['twitter-api']
 
-import logging
-logger = logging.getLogger(__name__)
-logger.addHandler(logging.StreamHandler())
-logger.setLevel(logging.DEBUG)
+logger = get_task_logger(__name__)
 
 def test(status):
 	json_data = status._json

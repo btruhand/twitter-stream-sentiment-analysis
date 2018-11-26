@@ -80,8 +80,8 @@ services:
         condition: service_healthy
       rabbitmq2:
         condition: service_healthy
-    cpus: 2.5
-    scale: 2
+    cpus: 2.0
+    scale: 4
 
 networks:
   web_rabbitmq:
