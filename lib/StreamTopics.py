@@ -2,6 +2,11 @@ from tweepy import Stream, StreamListener, OAuthHandler
 from celery import Task
 from http import HTTPStatus
 
+import logging
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.DEBUG)
+
 class TwitterTopicListener(StreamListener):
 	def __init__(self, api=None):
 		super().__init__(api)
@@ -13,29 +18,29 @@ class TwitterTopicListener(StreamListener):
 
 	def on_status(self, status):
 		if self.stop:
-			print('Was told to stop so stopping..')
+			logger.info('Was told to stop so stopping..')
 			return False
 		self._on_status_callback(status)
 	
 	def on_error(self, status_code):
 		if self.stop:
-			print(f'A {status_code} error occurred, but we are told to stop')
+			logger.warning(f'A {status_code} error occurred, but we are told to stop')
 			return False
 
 		should_continue = True
 		if status_code == HTTPStatus.GONE:
-			print('Twitter streaming endpoint marked gone...')
+			logger.error('Twitter streaming endpoint marked gone...')
 			should_continue = False
 		elif status_code == HTTPStatus.INTERNAL_SERVER_ERROR:
-			print('Twitter claimed there was an internal server error')
+			logger.error('Twitter claimed there was an internal server error')
 			should_continue = False
 		elif status_code == HTTPStatus.BAD_GATEWAY:
-			print('Twitter is down!!')
+			logger.error('Twitter is down!!')
 			should_continue = False
 		elif status_code == HTTPStatus.GATEWAY_TIMEOUT:
-			print('Twitter said things are too slow right now')
+			logger.error('Twitter said things are too slow right now')
 			should_continue = False
-		print(f'A {status_code} error occurred in Twitter streaming. Should continue? {should_continue}')
+		logger.warning(f'A {status_code} error occurred in Twitter streaming. Should continue? {should_continue}')
 		return should_continue
 	
 	def should_stop(self):
@@ -70,7 +75,6 @@ class StreamTopics(Task):
 		"""
 		if task_id not in self._streams:
 			self._streams[task_id] = Stream(auth=self.auth, listener=TwitterTopicListener())
-		print(self._streams)
 		return self._streams[task_id]
 	
 	def __delitem__(self, task_id):
@@ -81,10 +85,9 @@ class StreamTopics(Task):
 		:param task_id: Celery task ID associated with some stream
 		:type task_id: str
 		"""
-		print(self._streams)
 		if task_id in self._streams:
 			self._streams[task_id].listener.should_stop()
 			del self._streams[task_id]
 			return
-		raise KeyError(f'Task id {task_id} was not found. Maybe it was not part of this task process?')
+		raise KeyError(f'Task id {task_id} was not found')
 

@@ -1,4 +1,4 @@
-from kombu import Queue, Exchange
+from kombu.common import Broadcast
 import json
 conf_fd = open('config.json')
 rabbitmq_conf = json.load(conf_fd)['rabbitmq']
@@ -18,23 +18,16 @@ result_backend = 'rpc://'
 result_persistent = False
 result_expires = 60
 
-# task_queues = (
-# 	Queue('queue-request', queue_arguments={'x-message-ttl': 60000}),
-# # 	# will need to change this to a Broadcast, currently stop_stream does not work with more than one concurrency
-# # 	# Queue(
-# # 	# 	name='queue-stop-stream',
-# # 	# 	exchange=Exchange('request-topic', type='fanout'),
-# # 	# 	queue_arguments={'x-message-ttl': 60000, 'x-max-priority': 1},
-# # 	# 	durable=True
-# # 	# ),
-# )
+task_queues = [
+	Broadcast('bcast'),
+]
 
-# # need to test this on "multiple" machines (aka Docker containers) and see what happens with no queue
-# # predetermined. Guessing it would do a broadcast since multiple machines, which if that is the case we
-# # want to declare static queue
-# task_routes = {
-# 	'streaming.start_stream': {
-# 		'queue': 'queue-request',
-# 		'routing_key': 'stream.start'
-# 	}
-# }
+# broadcasting is really weird... see: https://github.com/celery/celery/issues/4582
+# for celery documentation: https://celery.readthedocs.io/en/latest/userguide/routing.html#broadcast
+# for kombu.common.Broadcast: http://docs.celeryproject.org/projects/kombu/en/latest/reference/kombu.common.html
+task_routes = {
+	'streaming.stop_stream': {
+		'queue': 'bcast',
+		'exchange': 'bcast'
+	},
+}

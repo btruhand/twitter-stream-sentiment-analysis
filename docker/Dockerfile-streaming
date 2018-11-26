@@ -8,4 +8,4 @@ COPY celeryconfig.py .
 COPY config.json .
 COPY ./streaming streaming
 COPY ./lib/StreamTopics.py lib/StreamTopics.py
-ENTRYPOINT ["celery", "-A", "streaming", "worker", "-l", "info", "-c", "2"]
+ENTRYPOINT ["celery", "-A", "streaming", "worker", "-l", "info", "-c", "2", "-Q", "celery,bcast"]

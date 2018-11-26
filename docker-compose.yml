@@ -19,6 +19,7 @@ services:
       - web_rabbitmq
       - backend_rabbitmq
     ports:
+      - "5672:5672"
       - "15672:15672"
     expose:
       - "4369"

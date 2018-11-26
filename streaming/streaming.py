@@ -5,33 +5,39 @@ import json
 conf_fd = open('config.json')
 twitter_conf = json.load(conf_fd)['twitter-api']
 
+import logging
+logger = logging.getLogger(__name__)
+logger.addHandler(logging.StreamHandler())
+logger.setLevel(logging.DEBUG)
+
 def test(status):
-	full_data = status._json
-	print(f'Received status {full_data}')
+	json_data = status._json
+	text = json_data['text']
+	is_retweeted = 'retweeted_status' in json_data
+	created_at = json_data['created_at']
+	logger.info(f'Received status: {text}, {is_retweeted}, {created_at}')
 
 @app.task(
 	bind=True,
 	base=StreamTopics,
 	name='streaming.start_stream',
-	routing_key='stream.start',
 	twitter_configuration=twitter_conf)
 def start_stream(self, topic):
-	print(f'Got request {self.request.id} for topic {topic}')
+	logger.info(f'Got request {self.request.id} for topic {topic}')
 	twitter_stream = self[self.request.id]
 	twitter_stream.listener.set_on_status_callback(test)
-	twitter_stream.filter(track=[topic], async=True)
+	twitter_stream.filter(track=[topic], languages=['en'], async=True)
 	return {'status': 'ok', 'task_id': self.request.id}
 
 @app.task(
 	bind=True,
 	base=StreamTopics,
 	name='streaming.stop_stream',
-	routing_key='stream.stop',
 	twitter_configuration=twitter_conf)
 def stop_stream(self, stop_task):
-	print(f'Asked to stop stream of task {stop_task}')
+	logger.info(f'Asked to stop stream of task {stop_task}')
 	try:
 		del self[stop_task]
 		return {'status': 'ok'}
 	except KeyError as e:
-		return {'status': 'failed', 'reason': str(e)}
+		logger.warning(f'{str(e)}. Perhaps task is in other worker?')
