@@ -44,10 +44,6 @@ services:
   rabbitmq2:
     image: bigdata-project-mq:latest
     # image: rabbitmq:3.7-management
-    depends_on:
-      rabbitmq1:
-        # condition: service_healthy
-        condition: service_started
     networks:
       - web_rabbitmq
       - backend_rabbitmq
@@ -60,6 +56,9 @@ services:
       - rabbitmq_data_2:/var/lib/rabbitmq
       - ./rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
       - ./rabbitmq/definitions.json:/etc/rabbitmq/definitions.json
+    depends_on:
+      rabbitmq1:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "./tmp/wait-for-it.sh", "localhost:5672", "-t", "10"]
       interval: 30s
@@ -75,6 +74,8 @@ services:
     image: streaming-worker:latest
     networks:
       - backend_rabbitmq
+    expose:
+      - "9999"
     depends_on:
       rabbitmq1:
         condition: service_healthy
@@ -83,6 +84,61 @@ services:
     cpus: 2.0
     scale: 4
 
+  zookeeper:
+    image: bitnami/zookeeper:latest
+    expose:
+      - "2181"
+    networks:
+      - kafka_cluster
+    environment:
+      - ZOO_ENABLE_AUTH=yes
+      - ZOO_SERVER_USERS=kafka
+      - ZOO_SERVER_PASSWORDS=zookafka
+    volumes:
+      - zookeeper_data:/bitnami/zookeeper
+  kafka1:
+    image: bitnami/kafka:1.1.1-r70
+    expose:
+      - "9092"
+    environment:
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_ZOOKEEPER_USER=kafka
+      - KAFKA_ZOOKEEPER_PASSWORD=zookafka
+      - KAFKA_INTER_BROKER_USER=kafka_cluster
+      - KAFKA_INTER_BROKER_PASSWORD=kafkacluster
+      - KAFKA_BROKER_USER=kafka_user
+      - KAFKA_BROKER_PASSWORD=usekafka
+      - KAFKA_DELETE_TOPIC_ENABLE=true
+      - KAFKA_BROKER_ID=1
+    networks:
+      - kafka_cluster
+    depends_on:
+      - zookeeper
+    volumes:
+      - kafka_data_1:/bitnami/kafka
+  kafka2:
+    image: bitnami/kafka:1.1.1-r70
+    expose:
+      - "9092"
+    environment:
+      - KAFKA_ZOOKEEPER_CONNECT=zookeeper:2181
+      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_ZOOKEEPER_USER=kafka
+      - KAFKA_ZOOKEEPER_PASSWORD=zookafka
+      - KAFKA_INTER_BROKER_USER=kafka_cluster
+      - KAFKA_INTER_BROKER_PASSWORD=kafkacluster
+      - KAFKA_BROKER_USER=kafka_user
+      - KAFKA_BROKER_PASSWORD=usekafka
+      - KAFKA_DELETE_TOPIC_ENABLE=true
+      - KAFKA_BROKER_ID=2
+    networks:
+      - kafka_cluster
+    depends_on:
+      - zookeeper
+    volumes:
+      - kafka_data_2:/bitnami/kafka
+
 networks:
   web_rabbitmq:
     driver: bridge
@@ -90,6 +146,9 @@ networks:
   backend_rabbitmq:
     driver: bridge
     name: bigdata-project-backend-rabbitmq
+  kafka_cluster:
+    driver: bridge
+    name: bigdata-project-kafka-cluster
 
 volumes:
   rabbitmq_data_1:
@@ -98,3 +157,9 @@ volumes:
     name: bigdata-project-rabbitmq-data-2
   rabbitmq_data_3:
     name: bigdata-project-rabbitmq-data-3
+  zookeeper_data:
+    name: bigdata-project-zookeeper-data
+  kafka_data_1:
+    name: bigdata-project-kafka-data-1
+  kafka_data_2:
+    name: bigdata-project-kafka-data-2
