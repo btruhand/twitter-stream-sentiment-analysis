@@ -17,13 +17,5 @@
         {"name":"cluster_name","value":"rabbit@rabbitmq1"}
     ],
     "policies":[],
-    "queues":[
-        {"name":"queue-request","vhost":"/","durable":true,"auto_delete":false,"arguments":{"x-message-ttl":60000}},
-        {"name":"queue-sentiment","vhost":"/","durable":true,"auto_delete":false,"arguments":{"x-message-ttl":60000}}
-    ],
-    "exchanges":[
-        {"name":"request-topic","vhost":"/","type":"direct","durable":true,"auto_delete":false,"internal":false,"arguments":{}},
-        {"name":"sentiment-analysis","vhost":"/","type":"direct","durable":true,"auto_delete":false,"internal":false,"arguments":{}}
-    ],
     "bindings":[]
 }
