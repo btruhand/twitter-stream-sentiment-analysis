@@ -53,7 +53,8 @@ In detail these are the containers that you should see:
 ### First time setup
 If this is your first time running the containers then please also do the following after `docker-compose up -d`
 ```bash
-sh scripts/create-kafka-topics.sh
+./scripts/create-kafka-topics.sh
+./scripts/create-kafka-sentiment-topics.sh
 ```
 The command above will create the necessary kafka topics needed for the project
 
