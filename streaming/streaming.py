@@ -31,7 +31,8 @@ def start_stream(self, topic):
 	bind=True,
 	base=StreamTopics,
 	name='streaming.stop_stream',
-	twitter_configuration=twitter_conf)
+	twitter_configuration=twitter_conf,
+	ignore_result=True)
 def stop_stream(self, stop_task):
 	logger.info(f'Asked to stop stream of task {stop_task}')
 	try:

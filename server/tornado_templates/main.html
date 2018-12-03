@@ -1,13 +1,14 @@
 <!DOCTYPE HTML>
 <head>
   <title>Realtime Twitter Sentiment Analysis</title>
-  <script src="{{ static_url('topic.js') }}"></script>
 </head>
-<body>
+<body id="{{ id }}">
   <h1> Testing </h1>
   <form onsubmit="return false">
     <input id="topic_text" type="text" id="topic" placeholder="Twitter topic">
     <input id="topic_submit" type="button" value="Request topic" onclick="Topic.request()">
   </form>
   <div id="requested_topics"></div>
+
+  <script src="{{ static_url('topic.js') }}"></script>
 </body>

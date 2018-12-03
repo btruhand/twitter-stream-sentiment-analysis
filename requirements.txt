@@ -1,3 +1,4 @@
 tweepy==3.6.0
 tornado==5.1.1
 Celery==4.2.1
+aiokafka==0.4.3

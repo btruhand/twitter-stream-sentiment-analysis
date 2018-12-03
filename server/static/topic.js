@@ -1,3 +1,6 @@
+const userId = document.body.id;
+console.info(`Your ID is ${userId}`);
+
 const WsTopic = {
   ws: null,
   create: function(ws_uri) {
@@ -22,14 +25,21 @@ const WsTopic = {
 };
 
 const Topic = {
-  topicsSubscribed: {},
+  topicConnection: null, // WsTopic instance
+  numTopicsSubscribed: 0,
+
+  EVENTS: {
+    SUBSCRIBE: 'sub',
+    CANCEL: 'cancel'
+  },
+
   request: () => {
     const topicText = document.getElementById('topic_text').value;
     const headers = new Headers({'Content-Type': 'application/json'});
     const request = new Request('/topic', {
       method: 'POST',
       headers: headers,
-      body: JSON.stringify({topic: topicText}),
+      body: JSON.stringify({topic: topicText, userId}),
     });
     fetch(request)
       .then(Topic.handleResponse)
@@ -45,7 +55,7 @@ const Topic = {
     const request = new Request('/topic', {
       method: 'DELETE',
       headers: headers,
-      body: JSON.stringify({request_id: requestId}),
+      body: JSON.stringify({request_id: requestId, userId}),
     });
     fetch(request)
       .then(Topic.handleResponse)
@@ -89,15 +99,22 @@ const Topic = {
   },
 
   connectToWebsocket: (jsonPayload) => {
-    const websocketUri = jsonPayload.ws_connection;
-    Topic.topicsSubscribed[jsonPayload.request_id] = WsTopic.create(websocketUri);
+    if (Topic.numTopicsSubscribed === 0) {
+      console.info('Establishing websocket connection due to start of topic subscription');
+      const websocketUri = jsonPayload.ws_connection;
+      Topic.topicConnection = WsTopic.create(websocketUri);
+      Topic.numTopicsSubscribed++;
+    }
     return jsonPayload;
   },
   closeWebsocketConnection: (jsonPayload) => {
-    const requestId = jsonPayload['request_id'];
-    const wsConnection = Topic.topicsSubscribed[requestId];
-    wsConnection.ws.close(1000, `Finished streaming topic with request ID ${jsonPayload.request_id}`);
-    delete Topic.topicsSubscribed[requestId];
+    if (Topic.numTopicsSubscribed === 1) {
+      console.info('Closing websocket connection because no more topics subscribed');
+      const wsConnection = Topic.topicConnection;
+      wsConnection.ws.close(1000, `User ${userId} finished streaming to all subscribed topics`);
+      Topic.numTopicsSubscribed--;
+      Topic.topicConnection = null;
+    }
     return jsonPayload;
   }
 };
