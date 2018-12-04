@@ -2,7 +2,6 @@ from .celery import app
 from celery.utils.log import get_task_logger
 from celery.signals import celeryd_after_setup
 from lib import Kafka, StreamTopics #pylint: disable=import-error
-import asyncio
 import json
 
 with open('config.json') as conf_fd:
@@ -11,20 +10,16 @@ with open('config.json') as conf_fd:
 	kafka_conf = config['kafka']
 
 logger = get_task_logger(__name__)
-worker_name = 'default-celery'
 
 @celeryd_after_setup.connect
 def setup_direct_queue(sender, instance, **kwargs): #pylint: disable=unused-argument
-	global worker_name
+	global kafka_conf
 	celery_name = instance.name
 	worker_name = f'{celery_name}@{sender}'
-	loop = asyncio.new_event_loop()
-	asyncio.set_event_loop(loop)
-	loop.run_forever()
+	Kafka.create_producer_instance(client_id=worker_name, config=kafka_conf)
 
 def send_to_kafka(topic):
 	def _send_to_kafka(status):
-		global kafka_conf, worker_name
 		json_data = status._json
 		text = json_data['text']
 		is_retweeted = 'retweeted_status' in json_data
@@ -43,7 +38,7 @@ def send_to_kafka(topic):
 		created_at = json_data['created_at']
 		logger.info(f'Received status - text: {text}, is retweet: {is_retweeted}, at: {created_at}')
 
-		producer = Kafka.get_producer_instance(loop=asyncio.get_event_loop(), client_id=worker_name, config=kafka_conf)
+		producer = Kafka.get_producer_instance()
 		producer.send(topic, {'topic': topic, 'text': text, 'created_at': created_at})
 	return _send_to_kafka
 	

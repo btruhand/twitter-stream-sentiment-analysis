@@ -16,6 +16,7 @@
     },
     "kafka": {
         "bootstrap_servers": ["kafka1:9092", "kafka2:9092"],
+        "linger_ms": 100,
         "topics_request": [
             "SaluteToService",
             "SimonFraserUniversity",
