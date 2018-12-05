@@ -101,3 +101,21 @@ at [DockerHub](https://hub.docker.com/) and do a `docker login`
 Ports `80` and `15672` on the host (a.k.a your computer) is used to bind to some of the container's ports. If Docker says port `80` or `15672` is in use,
 please check if any applications are using those ports and stop those applications first. Alternatively you can modify the port bindings in `docker-compose.yml`
 under `streaming-web` and `rabbitmq` services.
+
+### Kafka broker immediately went down because NodeExist
+Did you check `docker-compose logs kafka1 kafka2` and saw a log message like this:
+```bash
+[2018-12-04 21:51:19,463] ERROR [KafkaServer id=1] Fatal error during KafkaServer startup. Prepare to shutdown (kafka.server.KafkaServer)
+org.apache.zookeeper.KeeperException$NodeExistsException: KeeperErrorCode = NodeExists
+	at org.apache.zookeeper.KeeperException.create(KeeperException.java:119)
+	at kafka.zk.KafkaZkClient.checkedEphemeralCreate(KafkaZkClient.scala:1485)
+	at kafka.zk.KafkaZkClient.registerBrokerInZk(KafkaZkClient.scala:84)
+	at kafka.server.KafkaServer.startup(KafkaServer.scala:257)
+	at kafka.server.KafkaServerStartable.startup(KafkaServerStartable.scala:38)
+	at kafka.Kafka$.main(Kafka.scala:75)
+	at kafka.Kafka.main(Kafka.scala)
+```
+
+Yes this is an unresolved issue that is raised in this [GitHub issue](https://github.com/bitnami/bitnami-docker-kafka/issues/33). This most likely
+happened after you did a `docker-compose down` and tried to do `docker-compose up -d` again. Just repeat the process a second time and it should work.
+At least this is the fix for now
