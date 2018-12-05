@@ -1,0 +1,22 @@
+<!DOCTYPE HTML>
+<head>
+  <title>Realtime Twitter Sentiment Analysis</title>
+  <script src="{{ static_url('topic_tommy.js') }}"></script>
+  <script src="{{ static_url('plotly.min.js') }}""></script>
+</head>
+<body>
+  <h1> Testing </h1>
+  <form onsubmit="return false">
+
+ <select>
+  <option value="christmas">Christmas<onclick="Topic.request()">
+  <option value="sfu">SFU</option>
+  <option value="bigdata">Big Data</option>
+  <option value="finals">Finals</option>
+</select> 
+
+    <!––<input id="topic_text" type="text" id="topic" placeholder="Twitter topic">
+    <input id="topic_submit" type="button" value="Request topic" onclick="Topic.request()">
+  </form>
+  <div id="requested_topics"></div>
+</body>
