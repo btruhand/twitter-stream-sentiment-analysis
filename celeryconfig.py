@@ -13,8 +13,9 @@ def create_rabbitmq_broker_uri():
 		yield f'amqp://{user}:{passwd}@{host}:{port}{vhost}'
 
 broker_url = [uri for uri in create_rabbitmq_broker_uri()]
+broker_connection_max_retries = rabbitmq_conf['max_connection_attempts']
 broker_transport_options = {
-	'max_retries': rabbitmq_conf['connection_attempts'],
+	'max_retries': rabbitmq_conf['max_task_retries'],
 	'interval_start': 0,
 	'interval_step': 0.2,
 	'interval_max': 0.2,

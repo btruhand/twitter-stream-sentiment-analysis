@@ -6,7 +6,8 @@
         "user": "bigdata",
         "password": "bigdata",
         "retry_delay": 1,
-        "connection_attempts": 3
+        "max_connection_attempts": 15,
+        "max_task_retries": 3
     },
     "twitter-api": {
         "consumer_api_key" : "2cxr421lek7AuoJZB1zMVkLDr",

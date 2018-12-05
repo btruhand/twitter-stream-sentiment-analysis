@@ -14,9 +14,10 @@ logger = get_task_logger(__name__)
 @celeryd_after_setup.connect
 def setup_direct_queue(sender, instance, **kwargs): #pylint: disable=unused-argument
 	global kafka_conf
-	celery_name = instance.name
-	worker_name = f'{celery_name}@{sender}'
-	Kafka.create_producer_instance(client_id=worker_name, config=kafka_conf)
+	logger.info('Inside setup direct queue... will connect to Kafka')
+	celery_name = instance.hostname
+	logger.info(f'Connecting to Kafka as {celery_name}')
+	Kafka.create_producer_instance(client_id=celery_name, config=kafka_conf)
 
 def send_to_kafka(topic):
 	def _send_to_kafka(status):

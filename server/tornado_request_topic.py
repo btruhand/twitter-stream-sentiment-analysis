@@ -57,37 +57,29 @@ class TopicHandler(RequestHandler):
 			ws_path = self.application.reverse_url('analytics', payload['userId'])
 			base_url = f'ws://{self.request.host}'
 			self.set_status(HTTPStatus.ACCEPTED)
-			self.finish({
-				'requested_topic': payload['topic'],
-				'ws_connection': urljoin(base_url, ws_path),
-				'request_id': 'testing'
-			})
-
-			# self.set_status(HTTPStatus.INTERNAL_SERVER_ERROR)
 			# self.finish({
-			# 	'status': 'NG',
-			# 	'reason': 'Unable to request for topic'
+			# 	'requested_topic': payload['topic'],
+			# 	'ws_connection': urljoin(base_url, ws_path),
+			# 	'request_id': 'testing'
 			# })
+
+			self.set_status(HTTPStatus.INTERNAL_SERVER_ERROR)
+			self.finish({
+				'status': 'NG',
+				'reason': 'Unable to request for topic'
+			})
 	
 	def delete(self):
 		payload = json.loads(self.request.body)
 		logging.debug(f"Received request to cancel {payload['request_id']} from {payload['userId']}")
 		try:
-			celery_result = streaming.stop_stream.apply_async(
+			streaming.stop_stream.apply_async(
 				args=[payload['request_id']],
 				expires=2.0, # let's just use same config for now'
 			)
-			res = celery_result.get(timeout=3.0)
-			if res['status'] == 'ok':
-				self.set_status(HTTPStatus.ACCEPTED)
-				self.finish({'status': 'ok', 'request_id': payload['request_id']})
-			else:
-				self.set_status(HTTPStatus.CONFLICT)
-				self.finish({
-					'status': 'NG',
-					'reason': 'A conflict occurred during cancellation',
-					'request_id': payload['request_id'],
-				})
+			# due to broadcasting semantics sadly we can't get result
+			self.set_status(HTTPStatus.ACCEPTED)
+			self.finish({'status': 'ok', 'request_id': payload['request_id']})
 		except TimeoutError:
 			self.set_status(HTTPStatus.GATEWAY_TIMEOUT)
 			self.finish({
@@ -98,13 +90,13 @@ class TopicHandler(RequestHandler):
 		except OperationalError as e:
 			logging.error(f'Operational error when deleting topic request through celery: {str(e)}')
 			self.set_status(HTTPStatus.ACCEPTED)
-			self.finish({'status': 'ok', 'request_id': payload['request_id']})
+			# self.finish({'status': 'ok', 'request_id': payload['request_id']})
 
-			# self.set_status(HTTPStatus.INTERNAL_SERVER_ERROR)
-			# self.finish({
-			# 	'status': 'NG',
-			# 	'reason': 'Unable to cancel topic'
-			# })
+			self.set_status(HTTPStatus.INTERNAL_SERVER_ERROR)
+			self.finish({
+				'status': 'NG',
+				'reason': 'Unable to cancel topic'
+			})
 
 
 class AnalyticsHandler(WebSocketHandler):
@@ -115,8 +107,8 @@ class AnalyticsHandler(WebSocketHandler):
 	async def open(self, user_id):
 		logging.debug(f'Connection opened to user with ID: {user_id}')
 		# would like to create (or retrieve connection to Kafka here)
-		self.callback_timer = tornado.ioloop.PeriodicCallback(self.send_data, 500)
-		self.callback_timer.start()
+		# self.callback_timer = tornado.ioloop.PeriodicCallback(self.send_data, 500)
+		# self.callback_timer.start()
 		return await self.write_message(f'You are connected')
 	
 	async def on_message(self, message):
@@ -127,7 +119,7 @@ class AnalyticsHandler(WebSocketHandler):
 	def on_close(self):
 		logging.info(f'Client closed connection. Code: {self.close_code} and reason: {self.close_reason}')
 		# stopping callback timer
-		self.callback_timer.stop()
+		# self.callback_timer.stop()
 
 	def on_pong(self, data):
 		print(f'Received pong data {data}')

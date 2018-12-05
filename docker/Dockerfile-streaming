@@ -7,7 +7,7 @@ USER nobody
 COPY celeryconfig.py .
 COPY config.json .
 COPY ./streaming streaming
-COPY ./lib/StreamTopics.py lib/StreamTopics.py
+COPY ./lib lib
 # limit concurrency to 1 because of broadcast semantics and prefork pool
 # perhaps if using eventlet this can be alleviated
 ENTRYPOINT ["celery", "-A", "streaming", "worker", "-l", "info", "-c", "1", "-Q", "celery,bcast"]
