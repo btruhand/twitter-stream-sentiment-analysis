@@ -1,14 +1,26 @@
 <!DOCTYPE HTML>
 <head>
+  <script src="{{ static_url('plotly.min.js') }}"></script>
   <title>Realtime Twitter Sentiment Analysis</title>
 </head>
 <body id="{{ id }}">
   <h1> Testing </h1>
   <form onsubmit="return false">
-    <input id="topic_text" type="text" id="topic" placeholder="Twitter topic">
+    <!--<input id="topic_text" type="text" id="topic" placeholder="Twitter topic">  -->
+    <!--<input id="topic_text" type="text" id="topic" placeholder=document.getElementById('DropDownTopics').options[document.getElementById('DropDownTopics').selectedIndex].value;>  -->
     <input id="topic_submit" type="button" value="Request topic" onclick="Topic.request()">
   </form>
   <div id="requested_topics"></div>
 
+ <select id = "DropDownTopics">
+    <ul>
+      {% for topic in topics %}
+        <option value={{ topic }}>{{ topic }}</option>
+      {% end %}
+    </ul>
+ <select>
+
   <script src="{{ static_url('topic.js') }}"></script>
+
 </body>
+

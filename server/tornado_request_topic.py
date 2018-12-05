@@ -9,16 +9,21 @@ from celery.exceptions import TimeoutError, OperationalError
 from http import HTTPStatus
 from uuid import uuid4
 from random import random
+from datetime import datetime
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
+
+with open('config.json') as conf_fd:
+	config = json.load(conf_fd)
+	topics_request = config['kafka']['topics_request']
 
 class PageHandler(RequestHandler):
 	def get(self):
 		uuid = str(uuid4())
 		logging.info(f'A user connected, their ID will be {uuid}')
 		self.set_status(HTTPStatus.OK)
-		self.render('main.html', id=uuid)
+		self.render('main.html', id=uuid, topics=topics_request)
 
 class TopicHandler(RequestHandler):
 	def __init__(self, *args, **kwargs):
@@ -107,8 +112,8 @@ class AnalyticsHandler(WebSocketHandler):
 	async def open(self, user_id):
 		logging.debug(f'Connection opened to user with ID: {user_id}')
 		# would like to create (or retrieve connection to Kafka here)
-		# self.callback_timer = tornado.ioloop.PeriodicCallback(self.send_data, 500)
-		# self.callback_timer.start()
+		#self.callback_timer = tornado.ioloop.PeriodicCallback(self.send_data, 500) #COMMENT OUT
+		#self.callback_timer.start() #COMMENT OUT
 		return await self.write_message(f'You are connected')
 	
 	async def on_message(self, message):
@@ -119,13 +124,13 @@ class AnalyticsHandler(WebSocketHandler):
 	def on_close(self):
 		logging.info(f'Client closed connection. Code: {self.close_code} and reason: {self.close_reason}')
 		# stopping callback timer
-		# self.callback_timer.stop()
+		#self.callback_timer.stop() #COMMENT OUT
 
 	def on_pong(self, data):
 		print(f'Received pong data {data}')
 	
 	async def send_data(self):
-		data = {'message': str(uuid4()), 'data': random()}
+		data = {'at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'topic': 'SaluteToService', 'message': str(uuid4()), 'data': random()}
 		return await self.write_message(data)
 
 def sigterm_handler(server):
