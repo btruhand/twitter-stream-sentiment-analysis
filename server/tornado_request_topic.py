@@ -76,7 +76,7 @@ class TopicHandler(RequestHandler):
 			streaming.stop_stream.apply_async(
 				args=[payload['request_id']],
 				expires=2.0, # let's just use same config for now'
-			)
+			).get()
 			# due to broadcasting semantics sadly we can't get result
 			self.set_status(HTTPStatus.ACCEPTED)
 			self.finish({'status': 'ok', 'request_id': payload['request_id']})

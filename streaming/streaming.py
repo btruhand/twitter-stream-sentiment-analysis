@@ -1,6 +1,6 @@
 from .celery import app
 from celery.utils.log import get_task_logger
-from celery.signals import celeryd_after_setup
+from celery.signals import celeryd_after_setup, worker_process_init
 from lib import Kafka, StreamTopics #pylint: disable=import-error
 import json
 
@@ -13,9 +13,13 @@ logger = get_task_logger(__name__)
 
 @celeryd_after_setup.connect
 def setup_direct_queue(sender, instance, **kwargs): #pylint: disable=unused-argument
-	global kafka_conf
-	logger.info('Inside setup direct queue... will connect to Kafka')
+	global celery_name
+	logger.info('Inside setup direct queue storing celery worker name')
 	celery_name = instance.hostname
+
+@worker_process_init.connect
+def connect_to_kafka(**kwargs):
+	global celery_name, kafka_conf
 	logger.info(f'Connecting to Kafka as {celery_name}')
 	Kafka.create_producer_instance(client_id=celery_name, config=kafka_conf)
 
@@ -37,10 +41,12 @@ def send_to_kafka(topic):
 			else:
 				text = json_data['text']
 		created_at = json_data['created_at']
-		logger.info(f'Received status - text: {text}, is retweet: {is_retweeted}, at: {created_at}')
+		# logger.info(f'Received status - text: {text}, is retweet: {is_retweeted}, at: {created_at}')
 
 		producer = Kafka.get_producer_instance()
-		producer.send(topic, {'topic': topic, 'text': text, 'created_at': created_at})
+		fut = producer.send(topic, {'twitter_topic': topic, 'text': text, 'created_at': created_at})
+		fut.add_errback(lambda err: logger.error('Kafka error happened', exc_info=err))
+
 	return _send_to_kafka
 	
 

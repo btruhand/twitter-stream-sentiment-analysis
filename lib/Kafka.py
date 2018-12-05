@@ -7,7 +7,7 @@ def serializer(value):
 
 class Kafka:
 	"""Kafka wrapper
-	Wraps around aiokafka
+	Wraps around aiokafka and kafka-python
 	"""
 	_producer = None
 	_consumer = None
