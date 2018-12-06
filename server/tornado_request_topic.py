@@ -27,7 +27,7 @@ with open('config.json') as conf_fd:
 	# not efficient but works
 	kafka_sentiment_send_to_list = dict((sentiment_topic, []) for sentiment_topic in topics_sentiment)
 
-streaming_counter = dict((topic, 0) for topic in topics_request)
+streaming_counter = dict((topic, {'counter': 0, 'task_id': None}) for topic in topics_request)
 
 def make_topic_sentiment(s):
 	return s + '-sentiment'
@@ -72,14 +72,19 @@ class TopicHandler(RequestHandler):
 		payload = json.loads(self.request.body)
 		logging.debug(f"Received request for topic {payload['topic']} from {payload['userId']}")
 		try:
-			celery_result = streaming.start_stream.apply_async(
-				args=[payload['topic']],
-				expires=2.0
-			)
+			if streaming_counter[payload['topic']] == 0:
+				celery_result = streaming.start_stream.apply_async(
+					args=[payload['topic']],
+					expires=2.0
+				)
+				# timeout duration is too large generally, consider asynchronous
+				# approach (tornado-celery)
+				res = celery_result.get(timeout=3.0)
+				task_id = res['task_id']
+				streaming_counter[payload['topic']]['task_id'] = task_id
+			else:
+				task_id = streaming_counter[payload['topic']]['task_id']
 
-			# timeout duration is too large generally, consider asynchronous
-			# approach (tornado-celery)
-			res = celery_result.get(timeout=3.0)
 			ws_path = self.application.reverse_url('analytics', payload['userId'])
 			base_url = f'ws://{self.request.host}'
 			self.set_status(HTTPStatus.ACCEPTED)
@@ -87,7 +92,7 @@ class TopicHandler(RequestHandler):
 			self.finish({
 				'requested_topic': payload['topic'],
 				'ws_connection': urljoin(base_url, ws_path),
-				'request_id': res['task_id']
+				'request_id': task_id
 			})
 		except TimeoutError:
 			# unable to get in time
@@ -113,7 +118,6 @@ class TopicHandler(RequestHandler):
 		payload = json.loads(self.request.body)
 		logging.debug(f"Received request to cancel {payload['request_id']} from {payload['userId']}")
 		try:
-			print("Streaming counter is", streaming_counter[payload['topic']])
 			if streaming_counter[payload['topic']] == 1:
 				logging.info('No one is streaming this topic anymore so sending request for stream cancel')
 				streaming.stop_stream.apply_async(
