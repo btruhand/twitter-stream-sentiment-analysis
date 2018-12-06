@@ -1,7 +1,6 @@
 from pyspark.sql import SparkSession, types
 
 def main(spark):
-	print('In main')
 	schema = types.StructType([
 		types.StructField('col1', types.IntegerType()),
 		types.StructField('col2', types.IntegerType()),

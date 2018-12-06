@@ -2,6 +2,7 @@
 FROM bde2020/spark-submit:2.3.1-hadoop2.7
 
 ENV SPARK_APPLICATION_PYTHON_LOCATION /app/sentiment.py
+ENV SPARK_SUBMIT_ARGS --packages org.apache.spark:spark-sql-kafka-0-10_2.11:2.3.1
 COPY ./spark/template.sh /template.sh
 
 RUN apt-get update && apt-get -y install pandoc && pip3 install --upgrade pip
