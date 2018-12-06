@@ -13,6 +13,8 @@ RUN cd /app && pip3 install -r requirements.txt
 
 # Copy the source code
 COPY config.json /app
+# override submit.sh in base image
+COPY ./spark/submit.sh /submit.sh
 COPY ./spark /app
 
 CMD ["/bin/bash", "/template.sh"]

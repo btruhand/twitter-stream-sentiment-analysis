@@ -77,6 +77,7 @@ class TopicHandler(RequestHandler):
 		logging.debug(f"Received request to cancel {payload['request_id']} from {payload['userId']}")
 		try:
 			if streaming_counter[payload['topic']] == 1:
+				logging.info('No one is streaming this topic anymore so sending request for stream cancel')
 				streaming.stop_stream.apply_async(
 					args=[payload['request_id']],
 					expires=2.0, # let's just use same config for now'

@@ -9,6 +9,7 @@ services:
       - "80:10080"
     networks:
       - web_rabbitmq
+    cpus: 1.0
 
   rabbitmq1:
     build:
@@ -40,6 +41,7 @@ services:
       start_period: 45s
     restart: on-failure
     mem_limit: 150M
+    cpus: 0.5
 
   rabbitmq2:
     image: bigdata-project-mq:latest
@@ -66,6 +68,7 @@ services:
       start_period: 45s
     restart: on-failure
     mem_limit: 150M
+    cpus: 1.0
 
   zookeeper:
     image: bitnami/zookeeper:latest
@@ -89,10 +92,9 @@ services:
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka1:9092
     networks:
       - kafka_cluster
-    depends_on:
-      - zookeeper
     volumes:
       - kafka_data_1:/bitnami/kafka
+    cpus: 2.0
   kafka2:
     image: bitnami/kafka:1.1.1-r70
     expose:
@@ -107,6 +109,7 @@ services:
       - zookeeper
     volumes:
       - kafka_data_2:/bitnami/kafka
+    cpus: 2.0
     
   streamer:
     build:
@@ -127,53 +130,26 @@ services:
         condition: service_started
       kafka2:
         condition: service_started
-    cpus: 2.0
+    cpus: 1.0
     scale: 4
   
-  spark-master:
-    image: bde2020/spark-master:2.3.1-hadoop2.7
-    ports:
-      - "8080:8080"
-      - "7077:7077"
-    environment:
-      - ENABLE_INIT_DAEMON=false
-    networks:
-      - spark_cluster
-  spark-worker-1:
-    image: bde2020/spark-worker:2.3.1-hadoop2.7
-    container_name: spark-worker-1
-    depends_on:
-      - spark-master
-    ports:
-      - "8081:8081"
-    environment:
-      - "SPARK_MASTER=spark://spark-master:7077"
-    networks:
-      - spark_cluster
-      - kafka_cluster
-  spark-worker-2:
-    image: bde2020/spark-worker:2.3.1-hadoop2.7
-    container_name: spark-worker-2
-    depends_on:
-      - spark-master
-    environment:
-      - "SPARK_MASTER=spark://spark-master:7077"
-    networks:
-      - spark_cluster
-      - kafka_cluster
+  # not using spark standalone cluster because it takes too much power
   spark-app:
     build:
       context: .
-      dockerfile: ./docker/Dockerfile-spark
+      dockerfile: ./docker/Dockerfile-spark-app
     image: bigdata-project-spark-sentiment:latest
     environment:
+      - SPARK_MASTER_URL=local
+      - SPARK_CONCURRENCY=4
       - ENABLE_INIT_DAEMON=false
     depends_on:
-      - spark-master
-      - spark-worker-1
-      - spark-worker-2
+      - kafka1
+      - kafka2
     networks:
       - spark_cluster
+      - kafka_cluster
+    cpus: 4.0
 
 networks:
   web_rabbitmq:
