@@ -30,9 +30,9 @@ const Graph = {
   DRAW_INTERVAL: 100, // in milliseconds
   TIME_WINDOW: 60000, // in milliseconds
   graphData: {},
+  graphTopics: {},
 
   drawGraph(graphId) {
-    //console.log(`Drawing for graph ${graphId}`);
     if (graphId in Graph.graphData && Graph.graphData[graphId].data.length > 0) {
       // request ID is the graph ID
       Plotly.extendTraces(graphId, {
@@ -63,15 +63,15 @@ const Graph = {
 
   xAxisTimeFormat(ts) {
     const time = new Date(ts);
-    return time.toLocaleTimeString(undefined, {
+    return Date.parse(time.toLocaleTimeString(undefined, {
+      hour12: false,
       year: 'numeric', month: '2-digit', day: '2-digit',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
+    }));
   },
 
   createGraphArea: (jsonPayload) => {
     const topicsArea = document.getElementById('requested_topics');
-    // this is placeholder code for actual graph area
 
     const graphId = Graph.graphifyName(jsonPayload.requested_topic);
     const newGraph = document.createElement('div');
@@ -83,10 +83,11 @@ const Graph = {
       title: `${jsonPayload.requested_topic} Sentiment`,
       xaxis: {
         range: [ts, ts + Graph.TIME_WINDOW],
-        type: 'date'
+        type: 'date',
       },
       yaxis: {
-        range: [-1.1,1.1]
+        range: [-1.1,1.1],
+
       }
     };
     Plotly.newPlot(graphId, [{
@@ -120,7 +121,7 @@ const Graph = {
                 }
 */
 
-    Topic.graphTopics[graphId] = setInterval(() => Graph.drawGraph(graphId), Graph.DRAW_INTERVAL);
+    Graph.graphTopics[graphId] = setInterval(() => Graph.drawGraph(graphId), Graph.DRAW_INTERVAL);
     return jsonPayload;
   },
 
@@ -141,8 +142,6 @@ const Topic = {
     SUBSCRIBE: 'sub',
     CANCEL: 'cancel'
   },
-
-  graphTopics: {},
 
   request: () => {
     //const topicText = document.getElementById('topic_text').value;
