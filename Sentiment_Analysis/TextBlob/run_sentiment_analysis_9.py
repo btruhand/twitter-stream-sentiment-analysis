@@ -47,17 +47,15 @@ def main():
 
     tweets = tweets.withColumn('text_clean', regexp_replace(tweets['text_original'], '(#\w+)|(@[A-Za-z0-9]+)|([^0-9A-Za-z \t])|(\w+:\/\/\S+)', ' '))
 
-
     TextBlob_udf = udf(sentiment_calc)
     tweets = tweets.withColumn("sentiment_score", TextBlob_udf(tweets.text_clean).cast('double'))
     tweets = tweets.withColumn("sentiment_score_rounded", func.round(tweets['sentiment_score'], 1))
 
     datefunc =  udf (lambda x: datetime.strptime(x, '%a %b %d %H:%M:%S +0000 %Y'), TimestampType())
-    tweets = tweets.withColumn('created_at_clean', datefunc(tweets['created_at']))
-    tweets = tweets.withColumn('created_at_PST', func.from_utc_timestamp(tweets.created_at_clean, "PST"))
+    tweets = tweets.withColumn('created_at_PST_onestep', func.from_utc_timestamp(datefunc(tweets['created_at']), "PST"))
 
-    tweets.write.option("sep","|").csv('output', mode='overwrite')
-    tweets.show(10)
+    #tweets.write.option("sep","|").csv('output', mode='overwrite')
+    #tweets.show(10)
 
 if __name__ == '__main__':
     main()
