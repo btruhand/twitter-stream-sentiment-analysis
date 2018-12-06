@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from lib import Kafka
 
 import logging
-logging.basicConfig(level=logging.DEBUG)
+logging.basicConfig(level=logging.INFO)
 
 with open('config.json') as conf_fd:
 	config = json.load(conf_fd)
@@ -180,7 +180,9 @@ def sigterm_handler(server):
 	async def _sigterm_cb_handler():
 		logging.info('Shutting down in 5...')
 		kafka_periodic_consume.stop()
-		Kafka.get_consumer_instance.stop()
+		logging.info('Manage to stop kafka periodic consume')
+		Kafka.get_consumer_instance().stop()
+		logging.info('Manage to stop kafka consumer')
 		server.stop() # stop any incoming connections
 		await tornado.gen.sleep(5)
 		tornado.ioloop.IOLoop.current().stop()
