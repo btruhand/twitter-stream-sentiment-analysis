@@ -159,6 +159,7 @@ const Topic = {
       .catch((reason) => console.error(`Unable to request for topic because of ${reason}`));
   },
   cancel: (cancelEvent) => {
+    const topic = cancelEvent.target.dataset.topic;
     const graphId = cancelEvent.target.dataset.graphId;
     const requestId = cancelEvent.target.dataset.requestId;
     console.info(`Cancelling topic with requestID ${requestId}`);
@@ -167,7 +168,7 @@ const Topic = {
     const request = new Request('/topic', {
       method: 'DELETE',
       headers: headers,
-      body: JSON.stringify({request_id: requestId, userId}),
+      body: JSON.stringify({request_id: requestId, userId, topic}),
     });
     fetch(request)
       .then(Topic.handleResponse)

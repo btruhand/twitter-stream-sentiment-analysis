@@ -35,14 +35,14 @@ class TopicHandler(RequestHandler):
 		payload = json.loads(self.request.body)
 		logging.debug(f"Received request for topic {payload['topic']} from {payload['userId']}")
 		try:
-			# celery_result = streaming.start_stream.apply_async(
-			# 	args=[payload['topic']],
-			# 	expires=2.0
-			# )
+			celery_result = streaming.start_stream.apply_async(
+				args=[payload['topic']],
+				expires=2.0
+			)
 
 			# timeout duration is too large generally, consider asynchronous
 			# approach (tornado-celery)
-			# res = celery_result.get(timeout=3.0)
+			res = celery_result.get(timeout=3.0)
 			ws_path = self.application.reverse_url('analytics', payload['userId'])
 			base_url = f'ws://{self.request.host}'
 			self.set_status(HTTPStatus.ACCEPTED)
@@ -50,7 +50,7 @@ class TopicHandler(RequestHandler):
 			self.finish({
 				'requested_topic': payload['topic'],
 				'ws_connection': urljoin(base_url, ws_path),
-				'request_id': 'garbage'
+				'request_id': res['task_id']
 			})
 		except TimeoutError:
 			# unable to get in time
@@ -65,11 +65,6 @@ class TopicHandler(RequestHandler):
 			ws_path = self.application.reverse_url('analytics', payload['userId'])
 			base_url = f'ws://{self.request.host}'
 			self.set_status(HTTPStatus.ACCEPTED)
-			# self.finish({
-			# 	'requested_topic': payload['topic'],
-			# 	'ws_connection': urljoin(base_url, ws_path),
-			# 	'request_id': 'testing'
-			# })
 
 			self.set_status(HTTPStatus.INTERNAL_SERVER_ERROR)
 			self.finish({
@@ -116,8 +111,8 @@ class AnalyticsHandler(WebSocketHandler):
 	def open(self, user_id):
 		logging.debug(f'Connection opened to user with ID: {user_id}')
 		# would like to create (or retrieve connection to Kafka here)
-		self.callback_timer = tornado.ioloop.PeriodicCallback(self.send_data, 500) #COMMENT OUT
-		self.callback_timer.start() #COMMENT OUT
+		# self.callback_timer = tornado.ioloop.PeriodicCallback(self.send_data, 500) #COMMENT OUT
+		# self.callback_timer.start() #COMMENT OUT
 	
 	async def on_message(self, message):
 		# not implemented (at least yet)
@@ -127,7 +122,7 @@ class AnalyticsHandler(WebSocketHandler):
 	def on_close(self):
 		logging.info(f'Client closed connection. Code: {self.close_code} and reason: {self.close_reason}')
 		# stopping callback timer
-		self.callback_timer.stop() #COMMENT OUT
+		# self.callback_timer.stop() #COMMENT OUT
 
 	def on_pong(self, data):
 		print(f'Received pong data {data}')
