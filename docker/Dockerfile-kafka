@@ -1,0 +1,4 @@
+FROM bitnami/kafka:1.1.1-r70
+
+USER root
+RUN curl -O https://raw.githubusercontent.com/vishnubob/wait-for-it/master/wait-for-it.sh && chmod u+x wait-for-it.sh

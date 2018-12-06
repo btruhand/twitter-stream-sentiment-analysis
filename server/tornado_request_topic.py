@@ -24,7 +24,7 @@ with open('config.json') as conf_fd:
 	topics_request = config['kafka']['topics_request']
 	topics_sentiment = config['kafka']['topics_sentiment']
 
-	user_topics_subscribe_list = dict((topic, []) for topic in topics_request)
+	# not efficient but works
 	kafka_sentiment_send_to_list = dict((sentiment_topic, []) for sentiment_topic in topics_sentiment)
 
 streaming_counter = dict((topic, 0) for topic in topics_request)
@@ -50,8 +50,10 @@ async def send_sentiment_to_subscribers():
 		topic = tp.topic
 		logging.info(f'Some kafka messages from {topic} came')
 		for sentiment in topic_sentiments:
+			data = sentiment.value
+			data['topic'] = topic
 			for ws_consumer in kafka_sentiment_send_to_list[topic]:
-				to_wait.append(ws_consumer.write_message(sentiment))
+				to_wait.append(ws_consumer.write_message(data))
 	if to_wait:
 		return await asyncio.wait(to_wait, return_when=asyncio.FIRST_COMPLETED)
 
@@ -111,6 +113,7 @@ class TopicHandler(RequestHandler):
 		payload = json.loads(self.request.body)
 		logging.debug(f"Received request to cancel {payload['request_id']} from {payload['userId']}")
 		try:
+			print("Streaming counter is", streaming_counter[payload['topic']])
 			if streaming_counter[payload['topic']] == 1:
 				logging.info('No one is streaming this topic anymore so sending request for stream cancel')
 				streaming.stop_stream.apply_async(
@@ -144,38 +147,34 @@ class AnalyticsHandler(WebSocketHandler):
 		super().__init__(application, request, **kwargs)
 		self.callback_timer = None
 		self.user_id = None
+		self.user_topics_sentiment = []
 
 	def open(self, user_id):
 		logging.debug(f'Connection opened to user with ID: {user_id}')
 		# register user ID to this instance
 		self.user_id = user_id
-		# would like to create (or retrieve connection to Kafka here)
-		# self.callback_timer = tornado.ioloop.PeriodicCallback(self.send_data, 500) #COMMENT OUT
-		# self.callback_timer.start() #COMMENT OUT
 	
 	async def on_message(self, message):
 		# not implemented (at least yet)
 		logging.debug(f'Received a message from client')
 		json_message = json.loads(message)
-		if json_message['subscribe']:
-			user_topics_subscribe_list[json_message['topic']].append(self.user_id)
+		if 'subscribe' in json_message:
 			# register this websocket
+			self.user_topics_sentiment.append(make_topic_sentiment(json_message['topic']))
 			kafka_sentiment_send_to_list[make_topic_sentiment(json_message['topic'])].append(self)
-		elif json_message['unsubscribe']:
+		elif 'unsubscribe' in json_message:
 			# just assume only these two
-			user_topics_subscribe_list[json_message['topic']].remove(self.user_id)
 			# unregister
+			self.user_topics_sentiment.remove(make_topic_sentiment(json_message['topic']))
 			kafka_sentiment_send_to_list[make_topic_sentiment(json_message['topic'])].remove(self)
-		return await self.write_message(f'Your message {message} was received and processed')
 	
 	def on_close(self):
 		logging.info(f'Client closed connection. Code: {self.close_code} and reason: {self.close_reason}')
-		# stopping callback timer
-		# self.callback_timer.stop() #COMMENT OUT
-	
-	async def send_data(self):
-		data = {'at': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %z'), 'topic': 'SaluteToService', 'text': str(uuid4()), 'data': random()}
-		return await self.write_message(data)
+		# in the event that user closes connection without cancelling
+		# remove self from send to list
+		logging.info(f'Will try to remove users for these sentiment topics {self.user_topics_sentiment}')
+		for sentiment_topic in self.user_topics_sentiment:
+			kafka_sentiment_send_to_list[sentiment_topic].remove(self)
 
 def sigterm_handler(server):
 	async def _sigterm_cb_handler():

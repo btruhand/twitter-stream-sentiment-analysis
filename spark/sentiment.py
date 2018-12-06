@@ -30,7 +30,7 @@ def main(spark, kafka_conf):
 		.load()
 	
 	# watermark so we don't keep track of data too long (we don't need it anyway)
-	tweet_stream = tweet_stream.withWatermark('timestamp', '1 minutes')
+	# tweet_stream = tweet_stream.withWatermark('timestamp', '20 seconds')
 	tweet_stream = tweet_stream.select(
 		concat(tweet_stream.topic, lit('-sentiment')).alias('topic'),
 		json_tuple(tweet_stream.value.cast('string'), 'tweet', 'created_at'),
@@ -47,13 +47,11 @@ def main(spark, kafka_conf):
 		to_json(struct('sentiment_score', 'created_at', 'tweet')).alias('value'),
 		'timestamp'
 	)
-	query = tweet_stream.writeStream.outputMode('append').\
-		format('console')\
+	query = tweet_stream.writeStream.outputMode('append')\
+		.format('kafka')\
 		.option('checkpointLocation', False)\
-		.option('numRows', 5)\
-		.option('truncate', False)\
+		.option('kafka.bootstrap.servers', bootstrap_servers)\
 		.start()
-		# .option('kafka.bootstrap.servers', bootstrap_servers)\
 	# run forever until dead
 	query.awaitTermination()
 

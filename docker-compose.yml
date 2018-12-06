@@ -7,10 +7,16 @@ services:
     image: bigdata-project-tornado:latest
     ports:
       - "80:10080"
+    depends_on:
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
     networks:
       - web_rabbitmq
       - kafka_cluster
     cpus: 1.0
+    mem_limit: 100M
     blkio_config:
       weight: 250
 
@@ -39,9 +45,9 @@ services:
       # would not do it in a production setting, but here it is just to ease things up
     healthcheck:
       test: ["CMD", "./tmp/wait-for-it.sh", "localhost:5672", "-t", "10"]
-      interval: 30s
-      retries: 3
-      start_period: 45s
+      interval: 25s
+      retries: 2
+      start_period: 25s
     restart: on-failure
     mem_limit: 150M
     cpus: 0.5
@@ -49,6 +55,9 @@ services:
       weight: 200
 
   rabbitmq2:
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-rabbitmq
     image: bigdata-project-mq:latest
     # image: rabbitmq:3.7-management
     networks:
@@ -68,12 +77,12 @@ services:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "./tmp/wait-for-it.sh", "localhost:5672", "-t", "10"]
-      interval: 30s
-      retries: 1
-      start_period: 45s
+      interval: 25s
+      retries: 2
+      start_period: 25s
     restart: on-failure
     mem_limit: 150M
-    cpus: 1.0
+    cpus: 0.5
     blkio_config:
       weight: 200
 
@@ -87,37 +96,60 @@ services:
       - ZOO_ENABLE_AUTH=yes
       - ZOO_SERVER_USERS=kafka
       - ZOO_SERVER_PASSWORDS=zookafka
+    mem_limit: 300M
     volumes:
       - zookeeper_data:/bitnami/zookeeper
   kafka1:
-    image: bitnami/kafka:1.1.1-r70
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-kafka
+    image: bigdata-project-kafka:latest
     expose:
       - "9092"
     env_file: .kafka.env
     environment:
       - KAFKA_BROKER_ID=1
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka1:9092
+    depends_on:
+      - zookeeper
     networks:
       - kafka_cluster
     volumes:
       - kafka_data_1:/bitnami/kafka
+    healthcheck:
+      test: ["CMD", "./wait-for-it.sh", "localhost:9092", "-t", "10"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+    restart: on-failure
     cpus: 2.0
+    mem_limit: 1024M
     blkio_config:
       weight: 600
   kafka2:
-    image: bitnami/kafka:1.1.1-r70
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile-kafka
+    image: bigdata-project-kafka:latest
     expose:
       - "9092"
     env_file: .kafka.env
     environment:
       - KAFKA_BROKER_ID=2
       - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://kafka2:9092
-    networks:
-      - kafka_cluster
     depends_on:
       - zookeeper
+    networks:
+      - kafka_cluster
+    healthcheck:
+      test: ["CMD", "./wait-for-it.sh", "localhost:9092", "-t", "10"]
+      interval: 5s
+      retries: 3
+      start_period: 5s
+    restart: on-failure
     volumes:
       - kafka_data_2:/bitnami/kafka
+    mem_limit: 1024M
     cpus: 2.0
     blkio_config:
       weight: 600
@@ -138,11 +170,12 @@ services:
       rabbitmq2:
         condition: service_healthy
       kafka1:
-        condition: service_started
+        condition: service_healthy
       kafka2:
-        condition: service_started
+        condition: service_healthy
     cpus: 1.0
-    scale: 4
+    scale: 2
+    mem_limit: 100M
     blkio_config:
       weight: 350
   
@@ -157,14 +190,18 @@ services:
       - SPARK_CONCURRENCY=*
       - ENABLE_INIT_DAEMON=false
     depends_on:
-      - kafka1
-      - kafka2
+      kafka1:
+        condition: service_healthy
+      kafka2:
+        condition: service_healthy
     networks:
-      - spark_cluster
+      - spark_network
       - kafka_cluster
+    restart: on-failure
+    mem_limit: 8G
     blkio_config:
       weight: 800
-    cpus: 2.0
+    cpus: 4.0
 
 networks:
   web_rabbitmq:
@@ -176,7 +213,7 @@ networks:
   kafka_cluster:
     driver: bridge
     name: bigdata-project-kafka-cluster
-  spark_cluster:
+  spark_network:
     driver: bridge
     name: bigdata-project-spark-cluster
 
@@ -185,8 +222,6 @@ volumes:
     name: bigdata-project-rabbitmq-data-1
   rabbitmq_data_2:
     name: bigdata-project-rabbitmq-data-2
-  rabbitmq_data_3:
-    name: bigdata-project-rabbitmq-data-3
   zookeeper_data:
     name: bigdata-project-zookeeper-data
   kafka_data_1:

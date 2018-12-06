@@ -31,18 +31,34 @@ const Graph = {
   TIME_WINDOW: 60000, // in milliseconds
   graphData: {},
   graphTopics: {},
+  xAxisRange: {},
 
   drawGraph(graphId) {
-    if (graphId in Graph.graphData && Graph.graphData[graphId].data.length > 0) {
+    if (graphId in Graph.graphData && Graph.graphData[graphId].sentiment.length > 0) {
+      const dataAmount = Graph.graphData[graphId].sentiment.length;
       // request ID is the graph ID
       Plotly.extendTraces(graphId, {
-        x: [Graph.graphData[graphId].at],
-        y:[Graph.graphData[graphId].data],
-        text: [Graph.graphData[graphId].text]
+        x: [Graph.graphData[graphId].created_at],
+        y:[Graph.graphData[graphId].sentiment],
+        text: [Graph.graphData[graphId].tweet]
       }, [0]);
-      Graph.graphData[graphId].at = [];
-      Graph.graphData[graphId].text = [];
-      Graph.graphData[graphId].data = [];
+
+      const latestTs = Graph.graphData[graphId].created_at[dataAmount - 1];
+      if (latestTs > Graph.xAxisRange[graphId].high) {
+        const diff = Graph.xAxisRange[graphId].high - latestTs;
+        Graph.xAxisRange[graphId].low = Graph.xAxisRange[graphId].low + diff;
+        Graph.xAxisRange[graphId].high = latestTs + Graph.TIME_WINDOW;
+        Plotly.relayout(graphId,{
+          xaxis: {
+            range: [Graph.xAxisRange[graphId].low, Graph.xAxisRange[graphId].high],
+            type: 'date'
+          }
+        });
+      }
+
+      Graph.graphData[graphId].created_at = [];
+      Graph.graphData[graphId].tweet = [];
+      Graph.graphData[graphId].sentiment = [];
     }
   },
 
@@ -52,13 +68,13 @@ const Graph = {
 
   addData(data) {
     const jsonData = JSON.parse(data);
-    const graphId = Graph.graphifyName(jsonData.topic);
+    const graphId = Graph.graphifyName(jsonData.topic.replace('-sentiment',''));
     if(!(graphId in Graph.graphData)) {
-      Graph.graphData[graphId] = {'at': [], 'text': [], 'data': []};
+      Graph.graphData[graphId] = {'created_at': [], 'tweet': [], 'sentiment': []};
     }
-    Graph.graphData[graphId].at.push(Graph.xAxisTimeFormat(jsonData.at));
-    Graph.graphData[graphId].text.push(jsonData.text);
-    Graph.graphData[graphId].data.push(jsonData.data);
+    Graph.graphData[graphId].created_at.push(Graph.xAxisTimeFormat(jsonData.created_at));
+    Graph.graphData[graphId].tweet.push(jsonData.tweet);
+    Graph.graphData[graphId].sentiment.push(jsonData.sentiment_score);
   },
 
   xAxisTimeFormat(ts) {
@@ -87,7 +103,6 @@ const Graph = {
       },
       yaxis: {
         range: [-1.1,1.1],
-
       }
     };
     Plotly.newPlot(graphId, [{
@@ -97,6 +112,7 @@ const Graph = {
       y: [],
       text: []
     }], layout);
+    Graph.xAxisRange[graphId] = {low: ts, high: ts + Graph.TIME_WINDOW};
 
     const label = document.createElement('label');
     label.textContent = 'If you want to cancel click here: ';
@@ -111,16 +127,6 @@ const Graph = {
     newGraph.appendChild(label);
     newGraph.appendChild(cancel);
 
-/**                
-                if(cnt > 250) {
-                    Plotly.relayout(jsonPayload.request_id,{
-                        xaxis: {
-                            range: [cnt-250,cnt]
-                        }
-                   });
-                }
-*/
-
     Graph.graphTopics[graphId] = setInterval(() => Graph.drawGraph(graphId), Graph.DRAW_INTERVAL);
     return jsonPayload;
   },
@@ -130,6 +136,7 @@ const Graph = {
     clearInterval(Graph.graphTopics[graphId]);
     delete Graph.graphTopics[graphId];
     delete Graph.graphData[graphId];
+    delete Graph.xAxisRange[graphId];
     document.getElementById(graphId).remove();
   },
 };
@@ -192,8 +199,8 @@ const Topic = {
       console.info('Establishing websocket connection due to start of topic subscription');
       const websocketUri = jsonPayload.ws_connection;
       Topic.topicConnection = WsTopic.create(websocketUri);
-      Topic.numTopicsSubscribed++;
     }
+    Topic.numTopicsSubscribed++;
     // send subscription message
     // using setTimeout is a hack but works for local settings
     setTimeout(() => Topic.topicConnection.ws.send(
@@ -209,9 +216,9 @@ const Topic = {
       console.info('Closing websocket connection because no more topics subscribed');
       const wsConnection = Topic.topicConnection;
       wsConnection.ws.close(1000, `User ${userId} finished streaming to all subscribed topics`);
-      Topic.numTopicsSubscribed--;
       Topic.topicConnection = null;
     }
+    Topic.numTopicsSubscribed--;
     return jsonPayload;
   }
 };
