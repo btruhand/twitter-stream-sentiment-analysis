@@ -1,6 +1,7 @@
 import json
 import signal
 import tornado
+import asyncio
 from tornado.web import RequestHandler, URLSpec
 from tornado.websocket import WebSocketHandler
 from urllib.parse import urljoin
@@ -11,14 +12,47 @@ from uuid import uuid4
 from random import random
 from datetime import datetime, timezone
 
+from lib import Kafka
+
 import logging
 logging.basicConfig(level=logging.DEBUG)
 
 with open('config.json') as conf_fd:
 	config = json.load(conf_fd)
+	kafka_config = config['kafka']
+	bootstrap_servers = config['kafka']['bootstrap_servers']
 	topics_request = config['kafka']['topics_request']
+	topics_sentiment = config['kafka']['topics_sentiment']
+
+	user_topics_subscribe_list = dict((topic, []) for topic in topics_request)
+	kafka_sentiment_send_to_list = dict((sentiment_topic, []) for sentiment_topic in topics_sentiment)
 
 streaming_counter = dict((topic, 0) for topic in topics_request)
+
+def make_topic_sentiment(s):
+	return s + '-sentiment'
+
+kafka_periodic_consume = None
+
+async def setup_kafka(topics, config):
+	global kafka_periodic_consume
+	logging.info('Creating Kafka consumer')
+	await Kafka.create_consumer_instance(topics,
+		asyncio.get_event_loop(), config)
+	kafka_periodic_consume = tornado.ioloop.PeriodicCallback(send_sentiment_to_subscribers, 500)	
+	kafka_periodic_consume.start()
+
+async def send_sentiment_to_subscribers():
+	consumer = Kafka.get_consumer_instance()
+	sentiments = await consumer.getmany()
+	to_wait = []
+	for tp, topic_sentiments in sentiments.items():
+		topic = tp.topic
+		for sentiment in topic_sentiments:
+			for ws_consumer in kafka_sentiment_send_to_list[topic]:
+				to_wait.append(ws_consumer.write_message(sentiment))
+	if to_wait:
+		return await asyncio.wait(to_wait, return_when=asyncio.FIRST_COMPLETED)
 
 class PageHandler(RequestHandler):
 	def get(self):
@@ -108,9 +142,12 @@ class AnalyticsHandler(WebSocketHandler):
 	def __init__(self, application, request, **kwargs):
 		super().__init__(application, request, **kwargs)
 		self.callback_timer = None
+		self.user_id = None
 
 	def open(self, user_id):
 		logging.debug(f'Connection opened to user with ID: {user_id}')
+		# register user ID to this instance
+		self.user_id = user_id
 		# would like to create (or retrieve connection to Kafka here)
 		# self.callback_timer = tornado.ioloop.PeriodicCallback(self.send_data, 500) #COMMENT OUT
 		# self.callback_timer.start() #COMMENT OUT
@@ -118,15 +155,22 @@ class AnalyticsHandler(WebSocketHandler):
 	async def on_message(self, message):
 		# not implemented (at least yet)
 		logging.debug(f'Received a message from client')
-		return await self.write_message(f'Your message was {message}')
+		json_message = json.loads(message)
+		if json_message['subscribe']:
+			user_topics_subscribe_list[json_message['topic']].push(self.user_id)
+			# register this websocket
+			kafka_sentiment_send_to_list[make_topic_sentiment(json_message['topic'])].push(self)
+		elif json_message['unsubscribe']:
+			# just assume only these two
+			user_topics_subscribe_list[json_message['topic']].remove(self.user_id)
+			# unregister
+			kafka_sentiment_send_to_list[make_topic_sentiment(json_message['topic'])].remove(self)
+		return await self.write_message(f'Your message {message} was received and processed')
 	
 	def on_close(self):
 		logging.info(f'Client closed connection. Code: {self.close_code} and reason: {self.close_reason}')
 		# stopping callback timer
 		# self.callback_timer.stop() #COMMENT OUT
-
-	def on_pong(self, data):
-		print(f'Received pong data {data}')
 	
 	async def send_data(self):
 		data = {'at': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %z'), 'topic': 'SaluteToService', 'text': str(uuid4()), 'data': random()}
@@ -135,6 +179,8 @@ class AnalyticsHandler(WebSocketHandler):
 def sigterm_handler(server):
 	async def _sigterm_cb_handler():
 		logging.info('Shutting down in 5...')
+		kafka_periodic_consume.stop()
+		Kafka.get_consumer_instance.stop()
 		server.stop() # stop any incoming connections
 		await tornado.gen.sleep(5)
 		tornado.ioloop.IOLoop.current().stop()
@@ -155,6 +201,8 @@ if __name__ == "__main__":
 	signal.signal(signal.SIGTERM, sigterm_handler(server))
 	try:
 		logging.info('Starting tornado application started')
+		loop = tornado.ioloop.IOLoop.current()
+		loop.add_callback(setup_kafka, topics_sentiment, kafka_config)
 		tornado.ioloop.IOLoop.current().start()
 	except KeyboardInterrupt as e:
 		logging.error(f'Detected keyboard interrupt {e}, emptying resources (to do)')

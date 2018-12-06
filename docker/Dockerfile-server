@@ -1,13 +1,12 @@
 FROM python:3.6.7-alpine3.8
 
 WORKDIR /server/web
+EXPOSE 10080
+
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
-COPY config.json celeryconfig.py ./
-COPY ./server ./
+COPY config.json celeryconfig.py ./server ./
 COPY ./streaming ./streaming_task
 COPY ./lib ./lib
 
-WORKDIR /server/web
-EXPOSE 10080
 ENTRYPOINT ["python3", "-u", "tornado_request_topic.py"]
