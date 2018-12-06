@@ -1,0 +1,17 @@
+# Taken from https://github.com/big-data-europe/docker-spark/blob/master/template/python/Dockerfile
+FROM bde2020/spark-submit:2.3.1-hadoop2.7
+
+ENV SPARK_APPLICATION_PYTHON_LOCATION /app/sentiment.py
+COPY ./spark/template.sh /template.sh
+
+RUN apt-get update && apt-get -y install pandoc && pip3 install --upgrade pip
+
+# Copy the requirements.txt first, for separate dependency resolving and downloading
+COPY ./spark/requirements.txt /app/
+RUN cd /app && pip3 install -r requirements.txt
+
+# Copy the source code
+COPY config.json /app
+COPY ./spark /app
+
+CMD ["/bin/bash", "/template.sh"]
