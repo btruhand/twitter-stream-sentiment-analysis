@@ -1,3 +1,5 @@
+/* eslint-disable no-use-before-define */ /* global Plotly */
+
 const userId = document.body.id;
 console.info(`Your ID is ${userId}`);
 
@@ -5,7 +7,6 @@ const WsTopic = {
   ws: null,
   create: function(ws_uri) {
     const instance = {...WsTopic};
-    console.info(instance);
     instance.ws = new WebSocket(ws_uri);
     instance.ws.onopen = () => console.info(`Websocket connection to ${ws_uri} opened`);
     instance.ws.onclose = this.handleClose;
@@ -27,14 +28,13 @@ const WsTopic = {
 
 const Graph = {
   DRAW_INTERVAL: 100, // in milliseconds
+  TIME_WINDOW: 60000, // in milliseconds
   graphData: {},
 
   drawGraph(graphId) {
-    console.log(`Drawing for graph ${graphId}`);
+    //console.log(`Drawing for graph ${graphId}`);
     if (graphId in Graph.graphData && Graph.graphData[graphId].data.length > 0) {
-      console.log('Inside drawing logic');
       // request ID is the graph ID
-      console.log(Graph.graphData[graphId].at);
       Plotly.extendTraces(graphId, {
         x: [Graph.graphData[graphId].at],
         y:[Graph.graphData[graphId].data],
@@ -51,22 +51,87 @@ const Graph = {
   },
 
   addData(data) {
-    console.log(`Data is ${data}`);
-    console.log(`Data type is ${typeof data}`);
     const jsonData = JSON.parse(data);
-    console.log('JSON data is', jsonData);
     const graphId = Graph.graphifyName(jsonData.topic);
-    console.log(`In add data adding for ${graphId}`);
-    const topicData = {'at': jsonData.at, 'text': jsonData.message, 'data': jsonData.data};
-    console.log('Topic data is', topicData);
     if(!(graphId in Graph.graphData)) {
       Graph.graphData[graphId] = {'at': [], 'text': [], 'data': []};
     }
-    Graph.graphData[graphId].at.push(jsonData.at);
+    Graph.graphData[graphId].at.push(Graph.xAxisTimeFormat(jsonData.at));
     Graph.graphData[graphId].text.push(jsonData.text);
     Graph.graphData[graphId].data.push(jsonData.data);
-  }
-}
+  },
+
+  xAxisTimeFormat(ts) {
+    const time = new Date(ts);
+    return time.toLocaleTimeString(undefined, {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+  },
+
+  createGraphArea: (jsonPayload) => {
+    const topicsArea = document.getElementById('requested_topics');
+    // this is placeholder code for actual graph area
+
+    const graphId = Graph.graphifyName(jsonPayload.requested_topic);
+    const newGraph = document.createElement('div');
+    newGraph.setAttribute('id', graphId);
+    topicsArea.appendChild(newGraph);
+
+    const ts = Date.now();
+    const layout = {
+      title: `${jsonPayload.requested_topic} Sentiment`,
+      xaxis: {
+        range: [ts, ts + Graph.TIME_WINDOW],
+        type: 'date'
+      },
+      yaxis: {
+        range: [-1.1,1.1]
+      }
+    };
+    Plotly.newPlot(graphId, [{
+      mode: 'markers',
+      type:'scatter',
+      x: [],
+      y: [],
+      text: []
+    }], layout);
+
+    const label = document.createElement('label');
+    label.textContent = 'If you want to cancel click here: ';
+
+    const cancel = document.createElement('button');
+    cancel.setAttribute('value', jsonPayload.requested_topic);
+    cancel.dataset.requestId = jsonPayload.request_id;
+    cancel.dataset.topic = jsonPayload.requested_topic;
+    cancel.dataset.graphId = graphId;
+    cancel.textContent = `Cancel ${jsonPayload.requested_topic}`;
+    cancel.addEventListener('click', Topic.cancel); // eslint: disable=no-use-before-define 
+    newGraph.appendChild(label);
+    newGraph.appendChild(cancel);
+
+/**                
+                if(cnt > 250) {
+                    Plotly.relayout(jsonPayload.request_id,{
+                        xaxis: {
+                            range: [cnt-250,cnt]
+                        }
+                   });
+                }
+*/
+
+    Topic.graphTopics[graphId] = setInterval(() => Graph.drawGraph(graphId), Graph.DRAW_INTERVAL);
+    return jsonPayload;
+  },
+
+  removeGraphArea: (graphId) => (jsonPayload) => { // eslint-dsiable no-unused-vars
+    console.log('Remove graph area', graphId);
+    clearInterval(Graph.graphTopics[graphId]);
+    delete Graph.graphTopics[graphId];
+    delete Graph.graphData[graphId];
+    document.getElementById(graphId).remove();
+  },
+};
 
 const Topic = {
   topicConnection: null, // WsTopic instance
@@ -91,13 +156,13 @@ const Topic = {
     fetch(request)
       .then(Topic.handleResponse)
       .then(Topic.connectToWebsocket)
-      .then(Topic.createGraphArea)
+      .then(Graph.createGraphArea)
       .catch((reason) => console.error(`Unable to request for topic because of ${reason}`));
   },
   cancel: (cancelEvent) => {
     const graphId = cancelEvent.target.dataset.graphId;
     const requestId = cancelEvent.target.dataset.requestId;
-    console.info(`Cancelling topic ${requestId} with request ID`);
+    console.info(`Cancelling topic with requestID ${requestId}`);
 
     const headers = new Headers({'Content-Type': 'application/json'});
     const request = new Request('/topic', {
@@ -108,7 +173,7 @@ const Topic = {
     fetch(request)
       .then(Topic.handleResponse)
       .then(Topic.closeWebsocketConnection)
-      .then(Topic.removeGraphArea(graphId))
+      .then(Graph.removeGraphArea(graphId))
       .catch((reason) => console.error(`Unable to cancel for topic because of ${reason}`));
   },
 
@@ -120,65 +185,6 @@ const Topic = {
       }
     }
     throw Error('Response was not OK or JSON');
-    // if not any of the above do something here
-  },
-
-  createGraphArea: (jsonPayload) => {
-    const topicsArea = document.getElementById('requested_topics');
-    // this is placeholder code for actual graph area
-
-    const graphId = Graph.graphifyName(jsonPayload.requested_topic);
-    const newGraph = document.createElement('div');
-    newGraph.setAttribute('id', graphId);
-    topicsArea.appendChild(newGraph);
-
-    const layout = {
-      grid: {
-        domain: {
-          y: [-1,1]
-        }
-      }
-    };
-    Plotly.newPlot(graphId, [{
-      mode: 'markers',
-      type:'scatter',
-      x: [],
-      y: [],
-      text: []
-    }]);
-
-    const label = document.createElement('label');
-    label.textContent = 'If you want to cancel click here: ';
-
-    const cancel = document.createElement('button');
-    cancel.setAttribute('value', jsonPayload.requested_topic);
-    cancel.dataset.requestId = jsonPayload.request_id;
-    cancel.dataset.graphId = graphId;
-    cancel.textContent = `Cancel ${jsonPayload.requested_topic}`;
-    cancel.addEventListener('click', Topic.cancel); 
-    newGraph.appendChild(label);
-    newGraph.appendChild(cancel);
-
-/**                
-                if(cnt > 250) {
-                    Plotly.relayout(jsonPayload.request_id,{
-                        xaxis: {
-                            range: [cnt-250,cnt]
-                        }
-                   });
-                }
-*/
-
-    Topic.graphTopics[graphId] = setInterval(() => Graph.drawGraph(graphId), Graph.DRAW_INTERVAL);
-    return jsonPayload;
-  },
-
-  removeGraphArea: (graphId) => (jsonPayload) => {
-    console.log("Remove graph area", graphId);
-    clearInterval(Topic.graphTopics[graphId]);
-    delete Topic.graphTopics[graphId];
-    delete Graph.graphData[graphId];
-    document.getElementById(graphId).remove();
   },
 
   connectToWebsocket: (jsonPayload) => {

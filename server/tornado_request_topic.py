@@ -9,7 +9,7 @@ from celery.exceptions import TimeoutError, OperationalError
 from http import HTTPStatus
 from uuid import uuid4
 from random import random
-from datetime import datetime
+from datetime import datetime, timezone
 
 import logging
 logging.basicConfig(level=logging.DEBUG)
@@ -17,6 +17,8 @@ logging.basicConfig(level=logging.DEBUG)
 with open('config.json') as conf_fd:
 	config = json.load(conf_fd)
 	topics_request = config['kafka']['topics_request']
+
+streaming_counter = dict((topic, 0) for topic in topics_request)
 
 class PageHandler(RequestHandler):
 	def get(self):
@@ -33,21 +35,22 @@ class TopicHandler(RequestHandler):
 		payload = json.loads(self.request.body)
 		logging.debug(f"Received request for topic {payload['topic']} from {payload['userId']}")
 		try:
-			celery_result = streaming.start_stream.apply_async(
-				args=[payload['topic']],
-				expires=2.0
-			)
+			# celery_result = streaming.start_stream.apply_async(
+			# 	args=[payload['topic']],
+			# 	expires=2.0
+			# )
 
 			# timeout duration is too large generally, consider asynchronous
 			# approach (tornado-celery)
-			res = celery_result.get(timeout=3.0)
+			# res = celery_result.get(timeout=3.0)
 			ws_path = self.application.reverse_url('analytics', payload['userId'])
 			base_url = f'ws://{self.request.host}'
 			self.set_status(HTTPStatus.ACCEPTED)
+			streaming_counter[payload['topic']] += 1
 			self.finish({
 				'requested_topic': payload['topic'],
 				'ws_connection': urljoin(base_url, ws_path),
-				'request_id': res['task_id']
+				'request_id': 'garbage'
 			})
 		except TimeoutError:
 			# unable to get in time
@@ -78,10 +81,12 @@ class TopicHandler(RequestHandler):
 		payload = json.loads(self.request.body)
 		logging.debug(f"Received request to cancel {payload['request_id']} from {payload['userId']}")
 		try:
-			streaming.stop_stream.apply_async(
-				args=[payload['request_id']],
-				expires=2.0, # let's just use same config for now'
-			).get()
+			if streaming_counter[payload['topic']] == 1:
+				streaming.stop_stream.apply_async(
+					args=[payload['request_id']],
+					expires=2.0, # let's just use same config for now'
+				).get()
+			streaming_counter[payload['topic']] -= 1
 			# due to broadcasting semantics sadly we can't get result
 			self.set_status(HTTPStatus.ACCEPTED)
 			self.finish({'status': 'ok', 'request_id': payload['request_id']})
@@ -103,18 +108,16 @@ class TopicHandler(RequestHandler):
 				'reason': 'Unable to cancel topic'
 			})
 
-
 class AnalyticsHandler(WebSocketHandler):
 	def __init__(self, application, request, **kwargs):
 		super().__init__(application, request, **kwargs)
 		self.callback_timer = None
 
-	async def open(self, user_id):
+	def open(self, user_id):
 		logging.debug(f'Connection opened to user with ID: {user_id}')
 		# would like to create (or retrieve connection to Kafka here)
-		#self.callback_timer = tornado.ioloop.PeriodicCallback(self.send_data, 500) #COMMENT OUT
-		#self.callback_timer.start() #COMMENT OUT
-		return await self.write_message(f'You are connected')
+		self.callback_timer = tornado.ioloop.PeriodicCallback(self.send_data, 500) #COMMENT OUT
+		self.callback_timer.start() #COMMENT OUT
 	
 	async def on_message(self, message):
 		# not implemented (at least yet)
@@ -124,13 +127,13 @@ class AnalyticsHandler(WebSocketHandler):
 	def on_close(self):
 		logging.info(f'Client closed connection. Code: {self.close_code} and reason: {self.close_reason}')
 		# stopping callback timer
-		#self.callback_timer.stop() #COMMENT OUT
+		self.callback_timer.stop() #COMMENT OUT
 
 	def on_pong(self, data):
 		print(f'Received pong data {data}')
 	
 	async def send_data(self):
-		data = {'at': datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'topic': 'SaluteToService', 'message': str(uuid4()), 'data': random()}
+		data = {'at': datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S %z'), 'topic': 'SaluteToService', 'text': str(uuid4()), 'data': random()}
 		return await self.write_message(data)
 
 def sigterm_handler(server):
