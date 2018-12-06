@@ -44,12 +44,11 @@ def send_to_kafka(topic):
 		# logger.info(f'Received status - text: {text}, is retweet: {is_retweeted}, at: {created_at}')
 
 		producer = Kafka.get_producer_instance()
-		fut = producer.send(topic, {'twitter_topic': topic, 'text': text, 'created_at': created_at})
+		fut = producer.send(topic, {'tweet': text, 'created_at': created_at})
 		fut.add_errback(lambda err: logger.error('Kafka error happened', exc_info=err))
 
 	return _send_to_kafka
 	
-
 @app.task(
 	bind=True,
 	base=StreamTopics,
