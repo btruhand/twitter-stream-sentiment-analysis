@@ -10,6 +10,8 @@ services:
     networks:
       - web_rabbitmq
     cpus: 1.0
+    blkio_config:
+      weight: 250
 
   rabbitmq1:
     build:
@@ -42,6 +44,8 @@ services:
     restart: on-failure
     mem_limit: 150M
     cpus: 0.5
+    blkio_config:
+      weight: 200
 
   rabbitmq2:
     image: bigdata-project-mq:latest
@@ -69,6 +73,8 @@ services:
     restart: on-failure
     mem_limit: 150M
     cpus: 1.0
+    blkio_config:
+      weight: 200
 
   zookeeper:
     image: bitnami/zookeeper:latest
@@ -95,6 +101,8 @@ services:
     volumes:
       - kafka_data_1:/bitnami/kafka
     cpus: 2.0
+    blkio_config:
+      weight: 600
   kafka2:
     image: bitnami/kafka:1.1.1-r70
     expose:
@@ -110,6 +118,8 @@ services:
     volumes:
       - kafka_data_2:/bitnami/kafka
     cpus: 2.0
+    blkio_config:
+      weight: 600
     
   streamer:
     build:
@@ -132,6 +142,8 @@ services:
         condition: service_started
     cpus: 1.0
     scale: 4
+    blkio_config:
+      weight: 350
   
   # not using spark standalone cluster because it takes too much power
   spark-app:
@@ -141,7 +153,7 @@ services:
     image: bigdata-project-spark-sentiment:latest
     environment:
       - SPARK_MASTER_URL=local
-      - SPARK_CONCURRENCY=4
+      - SPARK_CONCURRENCY=*
       - ENABLE_INIT_DAEMON=false
     depends_on:
       - kafka1
@@ -149,7 +161,9 @@ services:
     networks:
       - spark_cluster
       - kafka_cluster
-    cpus: 4.0
+    blkio_config:
+      weight: 800
+    cpus: 2.0
 
 networks:
   web_rabbitmq:
