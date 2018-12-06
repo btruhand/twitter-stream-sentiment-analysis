@@ -48,6 +48,7 @@ async def send_sentiment_to_subscribers():
 	to_wait = []
 	for tp, topic_sentiments in sentiments.items():
 		topic = tp.topic
+		logging.info(f'Some kafka messages from {topic} came')
 		for sentiment in topic_sentiments:
 			for ws_consumer in kafka_sentiment_send_to_list[topic]:
 				to_wait.append(ws_consumer.write_message(sentiment))
@@ -119,7 +120,7 @@ class TopicHandler(RequestHandler):
 			streaming_counter[payload['topic']] -= 1
 			# due to broadcasting semantics sadly we can't get result
 			self.set_status(HTTPStatus.ACCEPTED)
-			self.finish({'status': 'ok', 'request_id': payload['request_id']})
+			self.finish({'status': 'ok', 'request_id': payload['request_id'], 'cancelled_topic': payload['topic']})
 		except TimeoutError:
 			self.set_status(HTTPStatus.GATEWAY_TIMEOUT)
 			self.finish({
@@ -157,9 +158,9 @@ class AnalyticsHandler(WebSocketHandler):
 		logging.debug(f'Received a message from client')
 		json_message = json.loads(message)
 		if json_message['subscribe']:
-			user_topics_subscribe_list[json_message['topic']].push(self.user_id)
+			user_topics_subscribe_list[json_message['topic']].append(self.user_id)
 			# register this websocket
-			kafka_sentiment_send_to_list[make_topic_sentiment(json_message['topic'])].push(self)
+			kafka_sentiment_send_to_list[make_topic_sentiment(json_message['topic'])].append(self)
 		elif json_message['unsubscribe']:
 			# just assume only these two
 			user_topics_subscribe_list[json_message['topic']].remove(self.user_id)

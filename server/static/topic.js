@@ -194,9 +194,17 @@ const Topic = {
       Topic.topicConnection = WsTopic.create(websocketUri);
       Topic.numTopicsSubscribed++;
     }
+    // send subscription message
+    // using setTimeout is a hack but works for local settings
+    setTimeout(() => Topic.topicConnection.ws.send(
+      JSON.stringify({'subscribe': true, 'topic': jsonPayload.requested_topic})
+    ), 100);
     return jsonPayload;
   },
   closeWebsocketConnection: (jsonPayload) => {
+    Topic.topicConnection.ws.send(
+      JSON.stringify({'unsubscribe': true, 'topic': jsonPayload.cancelled_topic})
+    );
     if (Topic.numTopicsSubscribed === 1) {
       console.info('Closing websocket connection because no more topics subscribed');
       const wsConnection = Topic.topicConnection;
