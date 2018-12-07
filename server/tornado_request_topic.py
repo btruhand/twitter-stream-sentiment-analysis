@@ -72,7 +72,7 @@ class TopicHandler(RequestHandler):
 		payload = json.loads(self.request.body)
 		logging.debug(f"Received request for topic {payload['topic']} from {payload['userId']}")
 		try:
-			if streaming_counter[payload['topic']] == 0:
+			if streaming_counter[payload['topic']]['counter'] == 0:
 				celery_result = streaming.start_stream.apply_async(
 					args=[payload['topic']],
 					expires=2.0
@@ -88,7 +88,7 @@ class TopicHandler(RequestHandler):
 			ws_path = self.application.reverse_url('analytics', payload['userId'])
 			base_url = f'ws://{self.request.host}'
 			self.set_status(HTTPStatus.ACCEPTED)
-			streaming_counter[payload['topic']] += 1
+			streaming_counter[payload['topic']]['counter'] += 1
 			self.finish({
 				'requested_topic': payload['topic'],
 				'ws_connection': urljoin(base_url, ws_path),
@@ -118,13 +118,13 @@ class TopicHandler(RequestHandler):
 		payload = json.loads(self.request.body)
 		logging.debug(f"Received request to cancel {payload['request_id']} from {payload['userId']}")
 		try:
-			if streaming_counter[payload['topic']] == 1:
+			if streaming_counter[payload['topic']]['counter'] == 1:
 				logging.info('No one is streaming this topic anymore so sending request for stream cancel')
 				streaming.stop_stream.apply_async(
 					args=[payload['request_id']],
 					expires=2.0, # let's just use same config for now'
 				).get()
-			streaming_counter[payload['topic']] -= 1
+			streaming_counter[payload['topic']]['counter'] -= 1
 			# due to broadcasting semantics sadly we can't get result
 			self.set_status(HTTPStatus.ACCEPTED)
 			self.finish({'status': 'ok', 'request_id': payload['request_id'], 'cancelled_topic': payload['topic']})
