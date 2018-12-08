@@ -10,10 +10,10 @@
         "max_task_retries": 3
     },
     "twitter-api": {
-        "consumer_api_key" : "2cxr421lek7AuoJZB1zMVkLDr",
-        "consumer_api_secret" : "V2HwjXymsmFcpHeC6Hfb90acpeKG0NXWDLr0uCBqTpPRnSG38p",
-        "access_token" : "2349631081-8KYghawl484QLfeMRXRodwSyo9BVqcO24RGuK4z",
-        "access_token_secret" : "yZcbqQOOvmGWo3sd2F69LjGFFTjc5NrgIlXpVrthvNBqR"
+        "consumer_api_key" : "<fill in your consumer API>",
+        "consumer_api_secret" : "<fill in your consumer API secret>",
+        "access_token" : "<fill in your access token>",
+        "access_token_secret" : "<fill in your access token secret>"
     },
     "kafka": {
         "bootstrap_servers": ["kafka1:9092", "kafka2:9092"],

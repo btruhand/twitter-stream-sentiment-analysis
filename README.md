@@ -26,4 +26,4 @@ The project is restricted in several ways:
 1. It is not suited for full fledge production application, hence it assumes it will be run in a restricted environment e.g laptop/desktop where control is easy
 2. It has been tested and built primarily on MacOS and Linux systems, Windows support is not guaranteed
 3. It is not built with security in mind
-4. The project is not meant to build a robust system for production usage. Hence several things desired such as timeouts, disconnection handling, clearing resources etc. are not fully supported due to constraints
+4. The project is not meant to build a robust system for production usage (though still with some scalability in mind). Hence several things desired such as timeouts, disconnection handling, clearing resources etc. are not fully supported due to constraints

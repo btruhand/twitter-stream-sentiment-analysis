@@ -2,6 +2,12 @@
 
 These are guidelines we give to run the project, in the order that needs to be done
 
+## Getting Twitter consumer API keys and tokens
+You would require getting a Twitter consumer API key and tokens. You can get them by applying for a [Twitter application
+dev account](https://developer.twitter.com/content/developer-twitter/en.html)
+
+After you get them please replace the placeholder in `config.json`
+
 ## Install Docker
 We leverage Docker to run the project. If you haven't please download these components:
 - [Docker for Mac](https://docs.docker.com/docker-for-mac/install/) if you are a Mac user
@@ -48,7 +54,8 @@ In detail these are the containers that you should see:
 3. Two celery worker containers
 4. A zookeeper container
 5. Two kafka broker containers
-6. Four celery task containers (they're named `streamer`)
+6. Two celery task containers (they're named `streamer`)
+7. A single Spark app container
 
 ### First time setup
 If this is your first time running the containers then please also do the following after `docker-compose up -d`
@@ -102,7 +109,7 @@ Ports `80` and `15672` on the host (a.k.a your computer) is used to bind to some
 please check if any applications are using those ports and stop those applications first. Alternatively you can modify the port bindings in `docker-compose.yml`
 under `streaming-web` and `rabbitmq` services.
 
-### Kafka broker immediately went down because NodeExist
+### Kafka broker immediately went down because NodeExist/Kafka is unhealthy
 Did you check `docker-compose logs kafka1 kafka2` and saw a log message like this:
 ```bash
 [2018-12-04 21:51:19,463] ERROR [KafkaServer id=1] Fatal error during KafkaServer startup. Prepare to shutdown (kafka.server.KafkaServer)
@@ -116,6 +123,15 @@ org.apache.zookeeper.KeeperException$NodeExistsException: KeeperErrorCode = Node
 	at kafka.Kafka.main(Kafka.scala)
 ```
 
+Or did you do `docker container ls` and saw Kafka containers are unhealthy or that you can't bring up a service because of Kafka being unhealthy?
+
 Yes this is an unresolved issue that is raised in this [GitHub issue](https://github.com/bitnami/bitnami-docker-kafka/issues/33). This most likely
-happened after you did a `docker-compose down` and tried to do `docker-compose up -d` again. Just repeat the process a second time and it should work.
-At least this is the fix for now
+happened after you did a `docker-compose down` and tried to do `docker-compose up -d` again. The easiest solution would be to do:
+```
+docker-compose stop kafka1 kafka2
+docker-compose up -d
+```
+Just repeat the process until it works, at least this is the workaround for now
+
+### The project keeps getting stuck after some time
+We don't know exactly why this happens... but we're guessing it is because of the heaviness of the Spark application. For [reference](https://github.com/docker/docker-py/issues/1374)

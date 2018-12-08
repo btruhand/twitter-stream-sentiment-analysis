@@ -95,7 +95,7 @@ class TopicHandler(RequestHandler):
 				'request_id': task_id
 			})
 		except TimeoutError:
-			# unable to get in time
+			# unable to get() in time
 			logging.error('Timed out when getting result of topic request')
 			self.set_status(HTTPStatus.GATEWAY_TIMEOUT)
 			self.finish({
